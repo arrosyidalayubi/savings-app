@@ -253,7 +253,6 @@ export default function App() {
             <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
               <span className="font-bold text-slate-950 text-xl">CF</span>
             </div>
-            <span className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">CashFlow <span className="text-emerald-500 dark:text-emerald-400">Edge</span></span>
           </div>
           
           <form onSubmit={handleLogin} className="space-y-6">
