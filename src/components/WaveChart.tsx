@@ -1,7 +1,20 @@
-import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-export default function WaveChart({ data }) {
+interface ChartData {
+  date: string;
+  pemasukan: number;
+  pengeluaran: number;
+  selisih: number;
+}
+
+interface WaveChartProps {
+  data: ChartData[];
+  loading?: boolean;
+  filterType?: string;
+}
+
+
+export default function WaveChart({ data }: WaveChartProps) {
   return (
     <div className="w-full h-80 p-4 bg-white rounded-xl shadow-md">
       <h3 className="text-lg font-bold mb-4 text-gray-700">Tren Pemasukan vs Pengeluaran</h3>

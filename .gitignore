@@ -24,4 +24,6 @@ dist-ssr
 *.sw?
 *.sql
 *.toml
-.wrangler
+node_modules/
+dist/
+.wrangler/
