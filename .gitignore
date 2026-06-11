@@ -23,7 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 *.sql
-*.toml
 node_modules/
 dist/
 .wrangler/
