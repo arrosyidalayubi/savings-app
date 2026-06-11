@@ -28,3 +28,5 @@ node_modules/
 dist/
 .wrangler/
 .wrangler
+schema.sql
+seed.sql
