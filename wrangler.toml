@@ -1,0 +1,8 @@
+name = "savings_app"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-06-11"
+
+[[d1_databases]]
+binding = "savings_db"
+database_name = "savings_db"
+database_id = "75c2b29f-6873-408b-acc8-f5e670926ee8"
