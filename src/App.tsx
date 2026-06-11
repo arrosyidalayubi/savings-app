@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, type ChangeEvent, type SyntheticEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import WaveChart from './components/WaveChart';
+import DistributionChart from './components/DistributionChart';
 
 type FilterType = 'harian' | 'bulanan' | 'tahunan';
 
@@ -184,8 +185,25 @@ export default function App() {
     return { pemasukan, pengeluaran, selisih: pemasukan - pengeluaran };
   }, [chartData]);
 
+  const distributionData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    
+    // Ambil semua data transaksi berjenis pengeluaran yang aktif saat ini
+    transactions
+      .filter(t => t.type === 'pengeluaran')
+      .forEach(t => {
+        counts[t.category] = (counts[t.category] || 0) + t.amount;
+      });
+
+    // Format menjadi array yang siap dibaca oleh Recharts Pie
+    return Object.keys(counts).map(key => ({
+      name: key,
+      value: counts[key]
+    }));
+  }, [transactions]);
+
   // --- HANDLERS ---
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -363,6 +381,7 @@ export default function App() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Form Tambah Transaksi */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm dark:shadow-xl h-fit transition-all duration-300">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
@@ -378,8 +397,8 @@ export default function App() {
 
             <form onSubmit={handleFormSubmit} className="space-y-5">
               <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
-                <button type="button" onClick={() => setFormData((prev) => ({ ...prev, type: 'pemasukan' }))} className={`py-2 text-sm font-bold rounded-lg transition-all ${formData.type === 'pemasukan' ? 'bg-emerald-100 dark:bg-emerald-500/10 border border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>Pemasukan</button>
-                <button type="button" onClick={() => setFormData((prev) => ({ ...prev, type: 'pengeluaran' }))} className={`py-2 text-sm font-bold rounded-lg transition-all ${formData.type === 'pengeluaran' ? 'bg-rose-100 dark:bg-rose-500/10 border border-rose-300 dark:border-rose-500/30 text-rose-700 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>Pengeluaran</button>
+                <button type="button" onClick={() => setFormData((prev) => ({ ...prev, type: 'pemasukan', category: '' }))} className={`py-2 text-sm font-bold rounded-lg transition-all ${formData.type === 'pemasukan' ? 'bg-emerald-100 dark:bg-emerald-500/10 border border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>Pemasukan</button>
+                <button type="button" onClick={() => setFormData((prev) => ({ ...prev, type: 'pengeluaran', category: '' }))} className={`py-2 text-sm font-bold rounded-lg transition-all ${formData.type === 'pengeluaran' ? 'bg-rose-100 dark:bg-rose-500/10 border border-rose-300 dark:border-rose-500/30 text-rose-700 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>Pengeluaran</button>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Jumlah Uang (Rp)</label>
@@ -387,7 +406,35 @@ export default function App() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Kategori</label>
-                <input type="text" name="category" value={formData.category} onChange={handleInputChange} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none" required />
+                <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Kategori</label>
+                <select 
+                  name="category" 
+                  value={formData.category} 
+                  onChange={handleInputChange} 
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition" 
+                  required
+                >
+                  <option value="" disabled>-- Pilih Kategori --</option>
+                  {formData.type === 'pemasukan' ? (
+                    <>
+                      <option value="Gaji">Gaji Bulanan</option>
+                      <option value="Freelance">Freelance / Proyek</option>
+                      <option value="Investasi">Keuntungan Investasi</option>
+                      <option value="Lainnya">Uang Masuk Lainnya</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="Makanan">Makanan & Minuman</option>
+                      <option value="Transportasi">Transportasi / Bensin</option>
+                      <option value="Belanja">Belanja Bulanan / Pasar</option>
+                      <option value="Hiburan">Hiburan / Gaya Hidup</option>
+                      <option value="Tagihan">Tagihan / Listrik / WiFi</option>
+                      <option value="Lainnya">Pengeluaran Lainnya</option>
+                    </>
+                  )}
+                </select>
+              </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Tanggal</label>
@@ -413,9 +460,16 @@ export default function App() {
             </form>
           </div>
 
-          <div className="lg:col-span-2 flex flex-col justify-between">
-            {/* Pastikan div kontainer WaveChart di komponennya juga ditambahkan support `bg-white dark:bg-slate-900` */}
-            <WaveChart data={chartData} loading={isLoadingChart} filterType={filterType} />
+          <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Grafik 1: Gelombang Selisih */}
+            <div className="w-full">
+              <WaveChart data={chartData} loading={isLoadingChart} filterType={filterType} />
+            </div>
+            
+            {/* Grafik 2: Distribusi Pengeluaran (Pie/Donut) */}
+            <div className="w-full">
+              <DistributionChart data={distributionData} />
+            </div>
           </div>
         </div>
 
