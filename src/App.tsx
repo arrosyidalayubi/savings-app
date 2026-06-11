@@ -297,7 +297,6 @@ export default function App() {
             <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
               <span className="font-bold text-slate-950 text-lg">CF</span>
             </div>
-            <span className="text-xl font-bold tracking-tight bg-linear-to-r from-slate-900 to-slate-500 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">CashFlow <span className="text-emerald-600 dark:text-emerald-400">Edge</span></span>
           </div>
           
           <div className="hidden md:flex items-center gap-6">
