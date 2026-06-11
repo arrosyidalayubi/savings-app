@@ -50,6 +50,8 @@ export default function App() {
     transaction_date: new Date().toISOString().split('T')[0]
   });
 
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+
 
   // --- MUTASI LOGIN ---
   const handleLogin = async (e: SyntheticEvent<HTMLFormElement>) => {
@@ -232,6 +234,8 @@ export default function App() {
       {/* Header Aplikasi */}
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          
+          {/* Logo */}
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
               <span className="font-bold text-slate-950 text-lg">CF</span>
@@ -239,8 +243,9 @@ export default function App() {
             <span className="text-xl font-bold tracking-tight bg-linear-to-r from-white to-slate-400 bg-clip-text text-transparent">CashFlow <span className="text-emerald-400">Edge</span></span>
           </div>
           
-          <div className="flex items-center gap-6">
-            <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700/50 md:flex">
+          {/* Menu Desktop (Sembunyi di Mobile) */}
+          <div className="hidden md:flex items-center gap-6">
+            <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700/50">
               {(['harian', 'bulanan', 'tahunan'] as FilterType[]).map((type) => (
                 <button
                   key={type}
@@ -253,11 +258,60 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <button onClick={handleLogout} className="text-sm font-medium text-rose-400 hover:text-rose-300">
+            <button onClick={handleLogout} className="text-sm font-medium text-rose-400 hover:text-rose-300 transition-colors">
               Logout
             </button>
           </div>
+
+          {/* Tombol Hamburger Mobile (Sembunyi di Desktop) */}
+          <div className="flex md:hidden items-center">
+            <button 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2 text-slate-400 hover:text-white focus:outline-none"
+            >
+              {isMobileMenuOpen ? (
+                // Ikon Close (X)
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              ) : (
+                // Ikon Hamburger Menu
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* Dropdown Menu Mobile */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden bg-slate-900 border-t border-slate-800 p-4 shadow-xl animate-in slide-in-from-top-2 duration-200">
+            <div className="flex flex-col gap-2 mb-4">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Filter Waktu</span>
+              {(['harian', 'bulanan', 'tahunan'] as FilterType[]).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => {
+                    setFilterType(type);
+                    setIsMobileMenuOpen(false); // Tutup menu setelah diklik
+                  }}
+                  className={`px-4 py-3 text-left text-sm font-medium rounded-xl capitalize transition-all ${
+                    filterType === type 
+                      ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold' 
+                      : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+            
+            <button 
+              onClick={handleLogout} 
+              className="w-full flex justify-center items-center gap-2 py-3 text-sm font-bold text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-xl hover:bg-rose-500/20 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              Logout Keluar
+            </button>
+          </div>
+        )}
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
