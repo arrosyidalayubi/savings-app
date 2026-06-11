@@ -16,8 +16,8 @@ interface WaveChartProps {
 
 export default function WaveChart({ data }: WaveChartProps) {
   return (
-    <div className="w-full h-80 min-h-80 p-4 bg-white rounded-xl shadow-md">
-      <h3 className="text-lg font-bold mb-4 text-gray-700">Tren Pemasukan vs Pengeluaran</h3>
+    <div className="w-full h-80 min-h-80 p-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl shadow-md">
+      <h3 className="text-lg font-bold mb-4 dark:text-gray-300">Tren Pemasukan vs Pengeluaran</h3>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
           <defs>
