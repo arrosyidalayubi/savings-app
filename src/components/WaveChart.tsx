@@ -39,14 +39,14 @@ export default function WaveChart({ data }: WaveChartProps) {
           <Area 
             type="monotone" 
             dataKey="pemasukan" 
-            stroke="#10B981" 
+            stroke="#13A67B" 
             fillOpacity={1} 
             fill="url(#colorPemasukan)" 
           />
           <Area 
             type="monotone" 
             dataKey="pengeluaran" 
-            stroke="#EF4444" 
+            stroke="#13A67B" 
             fillOpacity={1} 
             fill="url(#colorPengeluaran)" 
           />

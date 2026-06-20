@@ -1,2 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* Mendefinisikan Variabel Warna sesuai Desain UI/UX */
+:root {
+  --bg-base: #F7F9FA;
+  --bg-surface: #FFFFFF;
+  --border-line: #E5E7EB;
+  --text-main: #1F2937;
+  --text-muted: #6B7280;
+  
+  --brand-primary: #00473B;
+  --brand-accent: #13A67B;
+  
+  --color-success: #13A67B;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+}
+
+.dark {
+  --bg-base: #0E0F10;
+  --bg-surface: #121517;
+  --border-line: #1C1F22;
+  --text-main: #D1D5DB;
+  --text-muted: #9CA3AF;
+  
+  --brand-primary: #13A67B; 
+  --brand-accent: #13A67B; 
+}
+
+/* Mengikat Variabel ke Class Tailwind */
+@theme {
+  --font-sans: 'Inter', sans-serif;
+  
+  --color-background: var(--bg-base);
+  --color-surface: var(--bg-surface);
+  --color-border: var(--border-line);
+  
+  --color-primary: var(--text-main);
+  --color-muted: var(--text-muted);
+  
+  --color-brand: var(--brand-primary);
+  --color-accent: var(--brand-accent);
+  
+  --color-success: var(--color-success);
+  --color-danger: var(--color-error);
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+}
