@@ -9,8 +9,8 @@ interface DistributionChartProps {
   data: DistributionItem[];
 }
 
-// Warna-warna elegan untuk diagram lingkaran
-const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6'];
+// Menggunakan Palette Warna dari Desain (Accent, Warning, Error, dst)
+const COLORS = ['#13A67B', '#F59E0B', '#EF4444', '#3B82F6', '#8B5CF6', '#EC4899', '#14B8A6'];
 
 export default function DistributionChart({ data }: DistributionChartProps) {
   const formatRupiah = (num: number): string => {
@@ -19,33 +19,60 @@ export default function DistributionChart({ data }: DistributionChartProps) {
 
   if (data.length === 0) {
     return (
-      <div className="w-full h-full min-h-80 p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-center">
-        <span className="text-slate-400 text-sm">Belum ada data pengeluaran untuk filter ini.</span>
+      <div className="w-full h-full min-h-80 flex items-center justify-center">
+        <span className="text-muted text-sm font-medium">Belum ada distribusi pengeluaran.</span>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full min-h-80 p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm dark:shadow-xl flex flex-col justify-between transition-colors duration-300">
-      <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-2">Distribusi Pengeluaran</h3>
-      <div className="w-full h-64">
+    <div className="w-full h-full min-h-80 flex flex-col justify-between">
+      <h3 className="text-lg font-bold text-primary mb-2">Distribution</h3>
+      <div className="w-full h-64 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               cx="50%"
               cy="45%"
-              innerRadius={60}
-              outerRadius={85}
+              innerRadius={70}
+              outerRadius={95}
               paddingAngle={4}
               dataKey="value"
+              stroke="none" // Menghilangkan garis putih standar Recharts
             >
               {data.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip formatter={(value) => formatRupiah(Number(value || 0))} />
-            <Legend iconType="circle" layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '12px' }} />
+            
+            {/* Custom Tooltip Premium */}
+            <Tooltip
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  return (
+                    <div className="bg-surface border border-border p-3.5 rounded-xl shadow-xl flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: payload[0].payload.fill }}></div>
+                      <div>
+                        <p className="text-xs font-semibold text-muted">{payload[0].name}</p>
+                        <p className="text-sm font-bold text-primary">
+                          {formatRupiah(Number(payload[0].value || 0))}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+            
+            <Legend 
+              iconType="circle" 
+              layout="horizontal" 
+              verticalAlign="bottom" 
+              align="center" 
+              wrapperStyle={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-muted)' }} 
+            />
           </PieChart>
         </ResponsiveContainer>
       </div>
