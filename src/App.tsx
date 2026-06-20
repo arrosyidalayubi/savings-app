@@ -9,11 +9,17 @@ type MenuType = 'dashboard' | 'goals' | 'wallet' | 'settings';
 interface Transaction {
   id: number; type: 'pemasukan' | 'pengeluaran'; amount: number; category: string; description: string; transaction_date: string;
 }
+interface Goal {
+  id: number; name: string; target_amount: number; saved_amount: number; deadline: string; icon: string; status: 'Active' | 'Completed';
+}
 interface ChartSummaryData {
   date: string; pemasukan: number; pengeluaran: number; selisih: number;
 }
 interface TransactionFormData {
   type: 'pemasukan' | 'pengeluaran'; amount: string; category: string; description: string; transaction_date: string;
+}
+interface GoalFormData {
+  id: number | null; name: string; target_amount: string; saved_amount: number; deadline: string; icon: string; status: 'Active' | 'Completed';
 }
 
 // Kumpulan Ikon Lengkap
@@ -35,10 +41,7 @@ const Icons = {
   Send: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
 };
 
-interface ThemeToggleProps {
-  isDarkMode: boolean;
-  setIsDarkMode: (value: boolean) => void;
-}
+interface ThemeToggleProps { isDarkMode: boolean; setIsDarkMode: (value: boolean) => void; }
 
 function ThemeToggle({ isDarkMode, setIsDarkMode }: ThemeToggleProps) {
   return (
@@ -52,8 +55,7 @@ export default function App() {
   const queryClient = useQueryClient();
   
   // --- STATES ---
-  const [activeMenu, setActiveMenu] = useState<MenuType>('dashboard'); // STATE UNTUK ROUTING HALAMAN
-  
+  const [activeMenu, setActiveMenu] = useState<MenuType>('dashboard');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('cf_theme');
@@ -79,7 +81,12 @@ export default function App() {
     type: 'pengeluaran', amount: '', category: '', description: '', transaction_date: new Date().toISOString().split('T')[0]
   });
 
-  // --- LOGIC BACKEND DASHBOARD ---
+  // State Khusus Modal Goals
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+  const [goalFormData, setGoalFormData] = useState<GoalFormData>({ 
+    id: null, name: '', target_amount: '', saved_amount: 0, deadline: '', icon: 'Target', status: 'Active' 
+  });
+  // --- TRANSACTIONS API ---
   const handleLogin = async (e: SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
@@ -118,6 +125,38 @@ export default function App() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['summary'] }); queryClient.invalidateQueries({ queryKey: ['transactions'] }); }
   });
 
+  // --- GOALS API ---
+  const { data: goals = [], isLoading: isLoadingGoals } = useQuery<Goal[]>({
+    queryKey: ['goals'], queryFn: async () => { const res = await fetch(`/api/goals`); const json = await res.json(); return json.data || []; }, enabled: isAuthenticated
+  });
+
+  const submitGoal = useMutation({
+    mutationFn: async (payload: { id: number | null, data: Omit<Goal, 'id'> }) => {
+      const isEdit = payload.id !== null;
+      const res = await fetch(isEdit ? `/api/goals/${payload.id}` : '/api/goals', { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload.data) });
+      return await res.json();
+    },
+    onSuccess: () => {
+      setIsGoalModalOpen(false);
+      setGoalFormData({ id: null, name: '', target_amount: '', saved_amount: 0, deadline: '', icon: 'Target', status: 'Active' });
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
+    }
+  });
+
+  const updateGoalProgress = useMutation({
+    mutationFn: async (payload: { id: number, data: Goal }) => {
+      const res = await fetch(`/api/goals/${payload.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload.data) });
+      return await res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['goals'] })
+  });
+
+  const deleteGoal = useMutation({
+    mutationFn: async (id: number) => { const res = await fetch(`/api/goals/${id}`, { method: 'DELETE' }); return await res.json(); },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['goals'] })
+  });
+
+  // --- DERIVED STATE (KALKULASI OTOMATIS) ---
   const summary = useMemo(() => {
     const pemasukan = chartData.reduce((a, c) => a + c.pemasukan, 0);
     const pengeluaran = chartData.reduce((a, c) => a + c.pengeluaran, 0);
@@ -130,34 +169,61 @@ export default function App() {
     return Object.keys(counts).map(key => ({ name: key, value: counts[key] }));
   }, [transactions]);
 
+  // --- HANDLERS ---
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target; setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+  const handleGoalInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target; setGoalFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleFormSubmit = (e: SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault(); if (!formData.amount || !formData.category) return alert("Mohon isi jumlah");
     submitTransaction.mutate({ id: editingId, data: { ...formData, amount: parseFloat(formData.amount) } });
   };
+  const handleGoalSubmit = (e: SyntheticEvent) => {
+    e.preventDefault(); if (!goalFormData.name || !goalFormData.target_amount) return alert("Mohon isi Nama & Target");
+    submitGoal.mutate({ id: goalFormData.id, data: { ...goalFormData, target_amount: parseFloat(goalFormData.target_amount) } });
+  };
 
   const startEdit = (trx: Transaction) => {
     setEditingId(trx.id);
     setFormData({ type: trx.type, amount: trx.amount.toString(), category: trx.category, description: trx.description || '', transaction_date: trx.transaction_date.split('T')[0] });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
   const handleDelete = (id: number) => {
     if (window.confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) { deleteTransaction.mutate(id); }
   };
 
-  const formatRupiah = (num: number): string => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
+  const openGoalModal = (goal?: Goal) => {
+    if (goal) {
+      setGoalFormData({ id: goal.id, name: goal.name, target_amount: goal.target_amount.toString(), saved_amount: goal.saved_amount, deadline: goal.deadline, icon: goal.icon, status: goal.status });
+    } else {
+      setGoalFormData({ id: null, name: '', target_amount: '', saved_amount: 0, deadline: new Date().toISOString().split('T')[0], icon: 'Target', status: 'Active' });
+    }
+    setIsGoalModalOpen(true);
+  };
+  const handleAddMoney = (goal: Goal) => {
+    const amountStr = window.prompt(`Berapa uang yang ingin ditambah ke target '${goal.name}'?`);
+    if (amountStr) {
+      const amount = parseFloat(amountStr);
+      if (!isNaN(amount) && amount > 0) {
+        const newSaved = goal.saved_amount + amount;
+        updateGoalProgress.mutate({ id: goal.id, data: { ...goal, saved_amount: newSaved, status: newSaved >= goal.target_amount ? 'Completed' : 'Active' } });
+      } else { alert("Jumlah tidak valid."); }
+    }
+  };
+  const handleDeleteGoal = (id: number) => {
+    if (window.confirm("Hapus Goal ini beserta riwayat tabungannya?")) { deleteGoal.mutate(id); }
+  };
 
-  // ==============================================================================
-  // DATA DUMMY SEMENTARA UNTUK GOALS & WALLET (Tahap 1 UI/UX)
-  // ==============================================================================
-  const dummyGoals = [
-    { id: 1, name: 'Beli Laptop Baru', icon: <Icons.Laptop />, target: 15000000, saved: 12000000, deadline: '12 Aug 2026', status: 'Active' },
-    { id: 2, name: 'Liburan & Travel', icon: <Icons.Car />, target: 5000000, saved: 1800000, deadline: '20 Dec 2026', status: 'Active' },
-    { id: 3, name: 'Smart Watch', icon: <Icons.Target />, target: 2000000, saved: 2000000, deadline: '1 Jan 2026', status: 'Completed' },
-  ];
+  // Navigasi Shortcut dari Wallet ke Form Dashboard
+  const triggerWalletAction = (type: 'pemasukan' | 'pengeluaran') => {
+    setActiveMenu('dashboard');
+    setFormData(prev => ({ ...prev, type, category: '' }));
+  };
+
+  const formatRupiah = (num: number): string => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
 
   // --- LAYAR LOGIN ---
   if (!isAuthenticated) {
@@ -187,7 +253,7 @@ export default function App() {
 
   // --- LAYAR UTAMA DENGAN ROUTING ---
   return (
-    <div className="flex h-screen w-full bg-background text-primary font-sans overflow-hidden transition-colors duration-300">
+    <div className="flex h-screen w-full bg-background text-primary font-sans overflow-hidden transition-colors duration-300 relative">
       
       {/* SIDEBAR (Desktop) */}
       <aside className="hidden lg:flex flex-col w-64 bg-surface border-r border-border transition-colors duration-300">
@@ -197,24 +263,14 @@ export default function App() {
         </div>
         
         <nav className="flex-1 px-4 py-6 space-y-2">
-          <button onClick={() => setActiveMenu('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'dashboard' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}>
-            <Icons.Home /> Dashboard
-          </button>
-          <button onClick={() => setActiveMenu('goals')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'goals' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}>
-            <Icons.Target /> Goals Plans
-          </button>
-          <button onClick={() => setActiveMenu('wallet')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'wallet' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}>
-            <Icons.Wallet /> Wallet
-          </button>
-          <button onClick={() => setActiveMenu('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'settings' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}>
-            <Icons.Settings /> Settings
-          </button>
+          <button onClick={() => setActiveMenu('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'dashboard' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}><Icons.Home /> Dashboard</button>
+          <button onClick={() => setActiveMenu('goals')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'goals' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}><Icons.Target /> Goals Plans</button>
+          <button onClick={() => setActiveMenu('wallet')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'wallet' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}><Icons.Wallet /> Wallet</button>
+          <button onClick={() => setActiveMenu('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'settings' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}><Icons.Settings /> Settings</button>
         </nav>
 
         <div className="p-4">
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-danger hover:bg-danger/10 rounded-xl font-medium transition">
-            <Icons.Logout /> Logout
-          </button>
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-danger hover:bg-danger/10 rounded-xl font-medium transition"><Icons.Logout /> Logout</button>
         </div>
       </aside>
 
@@ -248,18 +304,17 @@ export default function App() {
           <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
             
             {/* ========================================================================= */}
-            {/* VIEW 1: DASHBOARD (Kode Lama Tetap Aman) */}
+            {/* VIEW 1: DASHBOARD */}
             {/* ========================================================================= */}
             {activeMenu === 'dashboard' && (
               <>
-                {/* Navigasi Filter & KARTU SUMMARY */}
                 <div className="flex items-center justify-between pb-2">
                   <div className="flex gap-2">
                     {(['harian', 'bulanan', 'tahunan'] as FilterType[]).map((type) => (
                       <button key={type} onClick={() => setFilterType(type)} className={`px-5 py-2 text-sm font-semibold rounded-full capitalize transition-all ${filterType === type ? 'bg-accent text-white shadow-md' : 'bg-surface border border-border text-muted hover:text-primary'}`}>{type}</button>
                     ))}
                   </div>
-                  <button className="px-4 py-2 bg-accent text-white text-sm font-semibold rounded-lg shadow-md hover:opacity-90 flex items-center gap-2"><Icons.Plus /> Add Goal</button>
+                  <button onClick={() => openGoalModal()} className="px-4 py-2 bg-accent text-white text-sm font-semibold rounded-lg shadow-md hover:opacity-90 flex items-center gap-2"><Icons.Plus /> Add Goal</button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -281,7 +336,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* GRAFIK & FORM */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                   <div className="lg:col-span-2 bg-surface border border-border rounded-[20px] p-6 shadow-sm flex flex-col">
                     <div className="flex justify-between items-center mb-6"><h3 className="text-lg font-bold text-primary">Analytics</h3></div>
@@ -295,16 +349,19 @@ export default function App() {
                         <button type="button" onClick={() => setFormData({ ...formData, type: 'pemasukan', category: '' })} className={`py-2 text-sm font-semibold rounded-lg ${formData.type === 'pemasukan' ? 'bg-surface text-accent shadow-sm' : 'text-muted'}`}>Masuk</button>
                         <button type="button" onClick={() => setFormData({ ...formData, type: 'pengeluaran', category: '' })} className={`py-2 text-sm font-semibold rounded-lg ${formData.type === 'pengeluaran' ? 'bg-surface text-danger shadow-sm' : 'text-muted'}`}>Keluar</button>
                       </div>
-                      <div><input type="number" name="amount" placeholder="Jumlah Uang" value={formData.amount} onChange={handleInputChange} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm" required /></div>
+                      <div><input type="number" name="amount" placeholder="Jumlah Uang" value={formData.amount} onChange={handleInputChange} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm focus:border-accent outline-none" required /></div>
                       <div className="grid grid-cols-2 gap-4">
-                        <select name="category" value={formData.category} onChange={handleInputChange} className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm" required>
+                        <select name="category" value={formData.category} onChange={handleInputChange} className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm focus:border-accent outline-none" required>
                           <option value="" disabled>Kategori...</option>
                           {formData.type === 'pemasukan' ? (<><option value="Gaji">Gaji</option><option value="Freelance">Freelance</option></>) : (<><option value="Makanan">Makanan</option><option value="Transportasi">Transport</option></>)}
                         </select>
-                        <input type="date" name="transaction_date" value={formData.transaction_date} onChange={handleInputChange} className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm" required />
+                        <input type="date" name="transaction_date" value={formData.transaction_date} onChange={handleInputChange} className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm focus:border-accent outline-none" required />
                       </div>
-                      <div><input type="text" name="description" placeholder="Keterangan..." value={formData.description} onChange={handleInputChange} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm" /></div>
-                      <button type="submit" disabled={submitTransaction.isPending} className="w-full py-2.5 bg-accent text-white rounded-lg text-sm font-semibold shadow-md">{submitTransaction.isPending ? 'Loading...' : 'Simpan'}</button>
+                      <div><input type="text" name="description" placeholder="Keterangan..." value={formData.description} onChange={handleInputChange} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm focus:border-accent outline-none" /></div>
+                      <div className="flex gap-2">
+                        {editingId && <button type="button" onClick={() => { setEditingId(null); setFormData({ type: 'pengeluaran', amount: '', category: '', description: '', transaction_date: new Date().toISOString().split('T')[0] }); }} className="flex-1 py-2.5 bg-background border border-border text-muted rounded-lg text-sm font-semibold">Batal</button>}
+                        <button type="submit" disabled={submitTransaction.isPending} className="flex-1 py-2.5 bg-accent text-white rounded-lg text-sm font-semibold shadow-md">{submitTransaction.isPending ? 'Loading...' : 'Simpan'}</button>
+                      </div>
                     </form>
                   </div>
                 </div>
@@ -335,11 +392,10 @@ export default function App() {
                             <td className={`py-4 font-bold text-right ${trx.type === 'pemasukan' ? 'text-accent' : 'text-danger'}`}>
                               {trx.type === 'pemasukan' ? '+' : '-'}{formatRupiah(trx.amount)}
                             </td>
-                            {/* Tombol Aksi Muncul saat di-Hover */}
                             <td className="py-4 text-center">
                               <div className="flex justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => startEdit(trx)} className="text-muted hover:text-primary transition font-medium" title="Edit">Edit</button>
-                                <button onClick={() => handleDelete(trx.id)} className="text-danger hover:opacity-80 transition font-medium" title="Hapus">Hapus</button>
+                                <button onClick={() => startEdit(trx)} className="text-muted hover:text-primary transition font-medium">Edit</button>
+                                <button onClick={() => handleDelete(trx.id)} className="text-danger hover:opacity-80 transition font-medium">Hapus</button>
                               </div>
                             </td>
                           </tr>
@@ -353,46 +409,54 @@ export default function App() {
             )}
 
             {/* ========================================================================= */}
-            {/* VIEW 2: GOALS PLANS (Mockup UI) */}
+            {/* VIEW 2: GOALS PLANS */}
             {/* ========================================================================= */}
             {activeMenu === 'goals' && (
               <div className="space-y-6">
-                <div className="flex justify-between items-center bg-surface border border-border rounded-[20px] p-4 px-6 shadow-sm">
-                  <div className="flex gap-4">
-                    <button className="text-sm font-bold text-primary border-b-2 border-accent pb-1">All Goals</button>
-                    <button className="text-sm font-medium text-muted pb-1">Active</button>
-                    <button className="text-sm font-medium text-muted pb-1">Completed</button>
+                <div className="flex justify-between items-center bg-surface border border-border rounded-[20px] p-4 px-6 shadow-sm overflow-x-auto">
+                  <div className="flex gap-4 min-w-max">
+                    <button className="text-sm font-bold text-primary border-b-2 border-accent pb-1">All Goals ({goals.length})</button>
+                    <button className="text-sm font-medium text-muted pb-1">Active ({goals.filter(g => g.status === 'Active').length})</button>
+                    <button className="text-sm font-medium text-muted pb-1">Completed ({goals.filter(g => g.status === 'Completed').length})</button>
                   </div>
-                  <button className="px-4 py-2 bg-accent text-white text-sm font-semibold rounded-lg shadow-md flex items-center gap-2"><Icons.Plus /> Add Goal</button>
+                  <button onClick={() => openGoalModal()} className="px-4 py-2 bg-accent text-white text-sm font-semibold rounded-lg shadow-md flex items-center gap-2 min-w-max ml-4"><Icons.Plus /> Add Goal</button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {dummyGoals.map(goal => {
-                    const percentage = Math.round((goal.saved / goal.target) * 100);
+                  {isLoadingGoals ? (
+                    <div className="col-span-full py-12 text-center text-muted font-medium">Memuat data tabungan...</div>
+                  ) : goals.length === 0 ? (
+                    <div className="col-span-full py-12 text-center text-muted font-medium border border-dashed border-border rounded-[20px]">Belum ada Goal tabungan yang dibuat.</div>
+                  ) : goals.map(goal => {
+                    const percentage = Math.min(Math.round((goal.saved_amount / goal.target_amount) * 100), 100);
                     return (
-                      <div key={goal.id} className="bg-surface border border-border rounded-[20px] p-6 shadow-sm flex flex-col gap-4">
+                      <div key={goal.id} className="bg-surface border border-border rounded-[20px] p-6 shadow-sm flex flex-col gap-4 relative group">
+                        <button onClick={() => handleDeleteGoal(goal.id)} className="absolute top-4 right-4 p-1.5 text-danger opacity-0 group-hover:opacity-100 bg-danger/10 rounded-lg transition" title="Hapus Goal"><Icons.Search /></button> {/* Reuse icon search for now or use specific trash icon */}
+                        
                         <div className="flex justify-between items-start">
                           <div className="flex gap-4 items-center">
-                            <div className="w-12 h-12 rounded-xl bg-background border border-border flex items-center justify-center text-primary">{goal.icon}</div>
+                            <div className="w-12 h-12 rounded-xl bg-background border border-border flex items-center justify-center text-primary">
+                              {goal.icon === 'Laptop' ? <Icons.Laptop /> : goal.icon === 'Car' ? <Icons.Car /> : <Icons.Target />}
+                            </div>
                             <div>
                               <h4 className="font-bold text-primary">{goal.name}</h4>
-                              <p className="text-sm text-primary font-semibold">{formatRupiah(goal.target)}</p>
+                              <p className="text-sm text-primary font-semibold">{formatRupiah(goal.target_amount)}</p>
                             </div>
                           </div>
                           <span className={`text-xs font-bold px-2 py-1 rounded ${goal.status === 'Active' ? 'text-warning bg-warning/10' : 'text-accent bg-accent/10'}`}>{goal.status}</span>
                         </div>
                         
                         <div>
-                          <div className="flex justify-between text-xs font-semibold mb-2"><span className="text-primary">{percentage}%</span><span className="text-muted">{formatRupiah(goal.saved)} Saved</span></div>
+                          <div className="flex justify-between text-xs font-semibold mb-2"><span className="text-primary">{percentage}%</span><span className="text-muted">{formatRupiah(goal.saved_amount)} Saved</span></div>
                           <div className="w-full h-2 bg-background rounded-full overflow-hidden border border-border">
-                            <div className="h-full bg-accent rounded-full" style={{ width: `${percentage}%` }}></div>
+                            <div className={`h-full rounded-full transition-all duration-500 ${goal.status === 'Completed' ? 'bg-accent' : 'bg-warning'}`} style={{ width: `${percentage}%` }}></div>
                           </div>
                         </div>
 
-                        <p className="text-xs text-muted font-medium">Deadline: {goal.deadline}</p>
+                        <p className="text-xs text-muted font-medium">Deadline: {new Date(goal.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric'})}</p>
                         <div className="flex gap-2 mt-2">
-                          <button className="flex-1 py-2 bg-background border border-border rounded-lg text-xs font-bold text-primary hover:bg-border transition">Edit</button>
-                          <button className="flex-1 py-2 bg-accent text-white rounded-lg text-xs font-bold hover:opacity-90 transition">+ Add Money</button>
+                          <button onClick={() => openGoalModal(goal)} className="flex-1 py-2 bg-background border border-border rounded-lg text-xs font-bold text-primary hover:bg-border transition">Edit</button>
+                          <button onClick={() => handleAddMoney(goal)} disabled={goal.status === 'Completed'} className="flex-1 py-2 bg-accent text-white rounded-lg text-xs font-bold hover:opacity-90 transition disabled:opacity-50">+ Add Money</button>
                         </div>
                       </div>
                     );
@@ -402,30 +466,29 @@ export default function App() {
             )}
 
             {/* ========================================================================= */}
-            {/* VIEW 3: WALLET (Mockup UI) */}
+            {/* VIEW 3: WALLET */}
             {/* ========================================================================= */}
             {activeMenu === 'wallet' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
-                {/* Kolom Kiri: Kartu Saldo */}
                 <div className="lg:col-span-1 space-y-6">
+                  {/* Kartu Saldo Otomatis dari Kalkulasi */}
                   <div className="bg-brand text-white border border-brand rounded-[20px] p-6 shadow-xl relative overflow-hidden">
                     <p className="text-sm font-medium text-white/80 flex items-center gap-2"><Icons.Wallet /> Balance</p>
-                    <p className="text-4xl font-bold mt-4">{formatRupiah(12500000)}</p>
+                    <p className="text-4xl font-bold mt-4">{formatRupiah(summary.selisih)}</p>
                     <div className="flex items-center gap-4 mt-6">
-                      <span className="flex items-center gap-1 text-xs text-white/80"><span className="w-2 h-2 rounded-full bg-accent"></span> In: {formatRupiah(15000000)}</span>
-                      <span className="flex items-center gap-1 text-xs text-white/80"><span className="w-2 h-2 rounded-full bg-danger"></span> Out: {formatRupiah(2500000)}</span>
+                      <span className="flex items-center gap-1 text-xs text-white/80"><span className="w-2 h-2 rounded-full bg-accent"></span> In: {formatRupiah(summary.pemasukan)}</span>
+                      <span className="flex items-center gap-1 text-xs text-white/80"><span className="w-2 h-2 rounded-full bg-danger"></span> Out: {formatRupiah(summary.pengeluaran)}</span>
                     </div>
-                    {/* Background Dekoratif */}
                     <div className="absolute -top-10 -right-10 w-40 h-40 bg-accent/20 rounded-full blur-3xl"></div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
-                    <button className="flex flex-col items-center justify-center gap-2 p-4 bg-surface border border-border rounded-[20px] hover:bg-background transition group">
+                    <button onClick={() => triggerWalletAction('pemasukan')} className="flex flex-col items-center justify-center gap-2 p-4 bg-surface border border-border rounded-[20px] hover:bg-background transition group">
                       <div className="w-10 h-10 rounded-full bg-accent/10 text-accent flex items-center justify-center group-hover:bg-accent group-hover:text-white transition"><Icons.ArrowDownLeft /></div>
                       <span className="text-xs font-bold text-primary">Deposit</span>
                     </button>
-                    <button className="flex flex-col items-center justify-center gap-2 p-4 bg-surface border border-border rounded-[20px] hover:bg-background transition group">
+                    <button onClick={() => triggerWalletAction('pengeluaran')} className="flex flex-col items-center justify-center gap-2 p-4 bg-surface border border-border rounded-[20px] hover:bg-background transition group">
                       <div className="w-10 h-10 rounded-full bg-danger/10 text-danger flex items-center justify-center group-hover:bg-danger group-hover:text-white transition"><Icons.ArrowUpRight /></div>
                       <span className="text-xs font-bold text-primary">Withdraw</span>
                     </button>
@@ -436,26 +499,28 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Kolom Kanan: History Wallet */}
                 <div className="lg:col-span-2 bg-surface border border-border rounded-[20px] p-6 shadow-sm">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-bold text-primary">Transaction History</h3>
                     <div className="flex text-xs font-medium text-muted gap-4">
                       <span className="flex items-center gap-1 border-b border-accent pb-1 text-primary">Newest</span>
-                      <span className="flex items-center gap-1 pb-1">All</span>
                     </div>
                   </div>
                   
                   <div className="space-y-4">
-                    {transactions.slice(0, 8).map(trx => (
-                      <div key={trx.id} className="flex justify-between items-center p-4 bg-background border border-border rounded-xl">
+                    {isLoadingTransactions ? (
+                       <div className="text-center py-8 text-muted">Memuat data dompet...</div>
+                    ) : transactions.length === 0 ? (
+                       <div className="text-center py-8 text-muted">Belum ada aktivitas dompet.</div>
+                    ) : transactions.map(trx => (
+                      <div key={trx.id} className="flex justify-between items-center p-4 bg-background border border-border rounded-xl hover:border-accent transition-colors">
                         <div className="flex gap-4 items-center">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${trx.type === 'pemasukan' ? 'bg-accent/10 text-accent' : 'bg-danger/10 text-danger'}`}>
                             {trx.type === 'pemasukan' ? <Icons.ArrowDownLeft /> : <Icons.ArrowUpRight />}
                           </div>
                           <div>
                             <p className="font-bold text-sm text-primary">{trx.category}</p>
-                            <p className="text-xs text-muted mt-0.5">{trx.transaction_date.split('T')[0]}</p>
+                            <p className="text-xs text-muted mt-0.5">{new Date(trx.transaction_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                           </div>
                         </div>
                         <div className="text-right">
@@ -469,12 +534,53 @@ export default function App() {
 
               </div>
             )}
-
-            {/* END OF KONTEN DINAMIS */}
-
           </div>
         </main>
       </div>
+
+      {/* ========================================================================= */}
+      {/* MODAL POPUP: ADD / EDIT GOAL */}
+      {/* ========================================================================= */}
+      {isGoalModalOpen && (
+        <div className="fixed inset-0 z-60 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-surface border border-border rounded-[20px] p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-bold text-primary mb-6">{goalFormData.id ? 'Edit Your Goal' : 'Create A New Goal'}</h3>
+            <form onSubmit={handleGoalSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1.5">Goal Name *</label>
+                  <input type="text" name="name" value={goalFormData.name} onChange={handleGoalInputChange} placeholder="e.g. New Laptop" className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary focus:border-accent outline-none" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1.5">Target Amount (Rp) *</label>
+                  <input type="number" name="target_amount" value={goalFormData.target_amount} onChange={handleGoalInputChange} placeholder="15000000" className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary focus:border-accent outline-none" required />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1.5">Deadline *</label>
+                  <input type="date" name="deadline" value={goalFormData.deadline} onChange={handleGoalInputChange} className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-primary focus:border-accent outline-none" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1.5">Icon Theme</label>
+                  <select name="icon" value={goalFormData.icon} onChange={handleGoalInputChange} className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-primary focus:border-accent outline-none appearance-none">
+                    <option value="Target">Target (Umum)</option>
+                    <option value="Laptop">Laptop (Gadget)</option>
+                    <option value="Car">Car (Kendaraan)</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setIsGoalModalOpen(false)} className="flex-1 py-3 bg-background border border-border text-muted rounded-xl text-sm font-bold hover:text-primary transition">Cancel</button>
+                <button type="submit" disabled={submitGoal.isPending} className="flex-1 py-3 bg-accent text-white rounded-xl text-sm font-bold shadow-lg shadow-accent/20 hover:opacity-90 transition disabled:opacity-50">
+                  {submitGoal.isPending ? 'Saving...' : (goalFormData.id ? 'Save Changes' : '+ Create Goal')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MOBILE OVERLAY MENU (Jika dibuka) */}
       {isMobileMenuOpen && (
@@ -482,7 +588,7 @@ export default function App() {
           <div className="w-64 h-full bg-surface border-r border-border p-6 flex flex-col">
             <div className="flex justify-between items-center mb-8">
               <span className="text-xl font-bold text-primary">CashFlow</span>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="text-muted"><Icons.Search /></button>
+              <button onClick={() => setIsMobileMenuOpen(false)} className="text-muted"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
             <nav className="flex-1 space-y-2">
               <button onClick={() => { setActiveMenu('dashboard'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'dashboard' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Home /> Dashboard</button>
