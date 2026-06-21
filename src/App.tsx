@@ -363,13 +363,20 @@ export default function App() {
             <h1 className="text-xl lg:text-2xl font-bold text-primary capitalize">{activeMenu === 'goals' ? 'Goals Plans' : activeMenu}</h1>
           </div>
 
-          <div className="flex items-center gap-3 lg:gap-5">
+          <div className="flex items-center gap-4 lg:gap-6">
             <ThemeToggle isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
-            <button className="p-2 text-muted hover:text-primary transition-colors relative"><Icons.Bell /><span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger rounded-full"></span></button>
+            
+            {/* Foto Profil Dinamis dari Database */}
             {userProfile?.avatar ? (
-              <img src={userProfile.avatar} alt="Profile" className="w-9 h-9 rounded-full object-cover border border-border shadow-sm ml-2" />
+              <img 
+                src={userProfile.avatar} 
+                alt="Profile" 
+                className="w-9 h-9 rounded-full object-cover border border-border shadow-sm ml-2" 
+              />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-accent text-white flex items-center justify-center font-bold shadow-sm ml-2">{userProfile?.name?.charAt(0).toUpperCase() || 'U'}</div>
+              <div className="w-9 h-9 rounded-full bg-accent text-white flex items-center justify-center font-bold shadow-sm ml-2">
+                {userProfile?.name?.charAt(0).toUpperCase() || 'U'}
+              </div>
             )}
           </div>
         </header>
