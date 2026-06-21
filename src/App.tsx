@@ -450,13 +450,14 @@ export default function App() {
                   <div className="lg:col-span-2 bg-surface border border-border rounded-[20px] p-6 shadow-sm overflow-hidden">
                     <div className="flex justify-between items-center mb-6">
                       <h3 className="text-lg font-bold text-primary">Recent Activity</h3>
-                      {/* Search Bar Lokal */}
                       <div className="flex items-center bg-background border border-border rounded-lg px-3 py-1.5 w-48">
                         <span className="text-muted mr-2"><Icons.Search /></span>
                         <input type="text" placeholder="Cari..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-transparent outline-none text-xs w-full text-primary" />
                       </div>
                     </div>
-                    <div className="overflow-x-auto">
+
+                    {/* Tampilan Desktop: Tetap Tabel */}
+                    <div className="hidden lg:block overflow-x-auto">
                       <table className="w-full text-left text-sm">
                         <thead>
                           <tr className="text-muted border-b border-border">
@@ -491,8 +492,39 @@ export default function App() {
                         </tbody>
                       </table>
                     </div>
+
+                    {/* Tampilan Mobile: Kartu yang Rapi */}
+                    <div className="lg:hidden flex flex-col gap-3">
+                      {isLoadingTransactions ? (
+                        <div className="py-6 text-center text-muted text-sm">Memuat data...</div>
+                      ) : filteredTransactions.length === 0 ? (
+                        <div className="py-6 text-center text-muted text-sm">Data tidak ditemukan.</div>
+                      ) : filteredTransactions.slice(0, 5).map((trx) => (
+                        <div key={trx.id} className="bg-background border border-border p-4 rounded-xl flex justify-between items-start gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between mb-1">
+                              <p className="font-bold text-sm text-primary">{trx.category}</p>
+                              <p className="text-[10px] text-muted">{new Date(trx.transaction_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                            </div>
+                            <p className="text-xs text-muted wrap-break-word leading-relaxed">{trx.description || '-'}</p>
+                          </div>
+                          <div className="flex flex-col items-end gap-2 shrink-0">
+                            <p className={`font-bold text-sm ${trx.type === 'pemasukan' ? 'text-accent' : 'text-danger'}`}>
+                              {trx.type === 'pemasukan' ? '+' : '-'}{formatRupiah(trx.amount)}
+                            </p>
+                            <div className="flex gap-2">
+                              <button onClick={() => startEdit(trx)} className="text-[10px] text-muted hover:text-primary underline">Edit</button>
+                              <button onClick={() => handleDelete(trx.id)} className="text-[10px] text-danger hover:opacity-80 underline">Hapus</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="bg-surface border border-border rounded-[20px] p-6 shadow-sm"><DistributionChart data={distributionData} /></div>
+                  
+                  <div className="bg-surface border border-border rounded-[20px] p-6 shadow-sm">
+                    <DistributionChart data={distributionData} />
+                  </div>
                 </div>
               </>
             )}
