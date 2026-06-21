@@ -732,8 +732,12 @@ export default function App() {
 
       {/* MOBILE OVERLAY MENU */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 lg:hidden flex">
-          <div className="w-64 h-full bg-surface border-r border-border p-6 flex flex-col">
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          {/* AREA KLIK DILUAR UNTUK MENUTUP */}
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>
+          
+          {/* SIDEBAR MOBILE */}
+          <div className="w-64 h-full bg-surface border-r border-border p-6 flex flex-col relative animate-in slide-in-from-left duration-200">
             <div className="flex justify-between items-center mb-8">
               <span className="text-xl font-bold text-primary">CashFlow</span>
               <button onClick={() => setIsMobileMenuOpen(false)} className="text-muted"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -744,6 +748,11 @@ export default function App() {
               <button onClick={() => changeMenu('wallet')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'wallet' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Wallet /> Wallet</button>
               <button onClick={() => changeMenu('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'settings' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Settings /> Settings</button>
             </nav>
+            
+            {/* TAMBAHAN: TOMBOL LOGOUT UNTUK MOBILE */}
+            <div className="pt-6 border-t border-border">
+              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-danger hover:bg-danger/10 rounded-xl font-medium transition"><Icons.Logout /> Logout</button>
+            </div>
           </div>
         </div>
       )}
