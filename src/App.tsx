@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, type ChangeEvent, type SyntheticEvent } from 'react';
+import { useState, useMemo, useEffect, type ChangeEvent, type SyntheticEvent, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import WaveChart from './components/WaveChart';
 import DistributionChart from './components/DistributionChart';
@@ -6,21 +6,12 @@ import DistributionChart from './components/DistributionChart';
 type FilterType = 'harian' | 'bulanan' | 'tahunan';
 type MenuType = 'dashboard' | 'goals' | 'wallet' | 'settings';
 
-interface Transaction {
-  id: number; type: 'pemasukan' | 'pengeluaran'; amount: number; category: string; description: string; transaction_date: string;
-}
-interface Goal {
-  id: number; name: string; target_amount: number; saved_amount: number; deadline: string; icon: string; status: 'Active' | 'Completed';
-}
-interface ChartSummaryData {
-  date: string; pemasukan: number; pengeluaran: number; selisih: number;
-}
-interface TransactionFormData {
-  type: 'pemasukan' | 'pengeluaran'; amount: string; category: string; description: string; transaction_date: string;
-}
-interface GoalFormData {
-  id: number | null; name: string; target_amount: string; saved_amount: number; deadline: string; icon: string; status: 'Active' | 'Completed';
-}
+interface Transaction { id: number; type: 'pemasukan' | 'pengeluaran'; amount: number; category: string; description: string; transaction_date: string; }
+interface Goal { id: number; name: string; target_amount: number; saved_amount: number; deadline: string; icon: string; status: 'Active' | 'Completed'; }
+interface ChartSummaryData { date: string; pemasukan: number; pengeluaran: number; selisih: number; }
+interface TransactionFormData { type: 'pemasukan' | 'pengeluaran'; amount: string; category: string; description: string; transaction_date: string; }
+interface GoalFormData { id: number | null; name: string; target_amount: string; saved_amount: number; deadline: string; icon: string; status: 'Active' | 'Completed'; }
+interface UserProfile { name: string; email: string; avatar: string | null; }
 
 // Kumpulan Ikon Lengkap
 const Icons = {
@@ -28,7 +19,7 @@ const Icons = {
   Home: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
   Wallet: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>,
   Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
-  Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
+  Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
   Bell: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>,
   Sun: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>,
   Moon: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>,
@@ -38,7 +29,8 @@ const Icons = {
   Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
   ArrowUpRight: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>,
   ArrowDownLeft: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>,
-  Send: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+  Send: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+  Camera: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
 };
 
 interface ThemeToggleProps { isDarkMode: boolean; setIsDarkMode: (value: boolean) => void; }
@@ -53,9 +45,12 @@ function ThemeToggle({ isDarkMode, setIsDarkMode }: ThemeToggleProps) {
 
 export default function App() {
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // --- STATES ---
   const [activeMenu, setActiveMenu] = useState<MenuType>('dashboard');
+  const [searchQuery, setSearchQuery] = useState('');
+
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('cf_theme');
@@ -70,7 +65,8 @@ export default function App() {
     else { document.documentElement.classList.remove('dark'); localStorage.setItem('cf_theme', 'light'); }
   }, [isDarkMode]);
 
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => localStorage.getItem('cf_auth_session') === 'true');
+  // Autentikasi berbasis Token
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => localStorage.getItem('cf_auth_session') !== null);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
@@ -86,31 +82,68 @@ export default function App() {
   const [goalFormData, setGoalFormData] = useState<GoalFormData>({ 
     id: null, name: '', target_amount: '', saved_amount: 0, deadline: '', icon: 'Target', status: 'Active' 
   });
-  // --- TRANSACTIONS API ---
+
+  // State Khusus Settings/Profil
+  const [profileForm, setProfileForm] = useState({ name: '', avatar: '' as string | null });
+  const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '' });
+
+  // --- API HELPER ---
+  const getAuthHeader = () => ({ 'Authorization': `Bearer ${localStorage.getItem('cf_auth_session')}` });
+
+  // --- QUERIES (FETCH DATA) ---
+  const { data: userProfile } = useQuery<UserProfile>({
+    queryKey: ['profile'],
+    queryFn: async () => { const res = await fetch('/api/profile', { headers: getAuthHeader() }); const json = await res.json(); return json.data; },
+    enabled: isAuthenticated
+  });
+
+  const { data: chartData = [], isLoading: isLoadingChart } = useQuery<ChartSummaryData[]>({
+    queryKey: ['summary', filterType], 
+    queryFn: async () => { const res = await fetch(`/api/summary?type=${filterType}`, { headers: getAuthHeader() }); const json = await res.json(); return json.data; }, 
+    enabled: isAuthenticated
+  });
+
+  const { data: transactions = [], isLoading: isLoadingTransactions } = useQuery<Transaction[]>({
+    queryKey: ['transactions', filterType], 
+    queryFn: async () => { const res = await fetch(`/api/transactions?filter=${filterType}`, { headers: getAuthHeader() }); const json = await res.json(); return json.data; }, 
+    enabled: isAuthenticated
+  });
+
+  const { data: goals = [], isLoading: isLoadingGoals } = useQuery<Goal[]>({
+    queryKey: ['goals'], 
+    queryFn: async () => { const res = await fetch(`/api/goals`, { headers: getAuthHeader() }); const json = await res.json(); return json.data || []; }, 
+    enabled: isAuthenticated
+  });
+
+  // Sinkronisasi data profil ke form saat data berhasil dimuat
+  useEffect(() => {
+    if (userProfile) {
+      const syncData = setTimeout(() => {
+        setProfileForm({ name: userProfile.name, avatar: userProfile.avatar });
+      }, 0);
+      return () => clearTimeout(syncData);
+    }
+  }, [userProfile]);
+
+  // --- MUTATIONS ---
   const handleLogin = async (e: SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: loginEmail, password: loginPassword }) });
       const data = await res.json();
-      if (data.success) { setIsAuthenticated(true); localStorage.setItem('cf_auth_session', 'true'); } 
-      else { alert("Login Gagal: Email atau Password salah!"); }
+      if (data.success) { setIsAuthenticated(true); localStorage.setItem('cf_auth_session', data.token); } 
+      else { alert(data.message || "Login Gagal: Email atau Password salah!"); }
     } catch { alert("Terjadi kesalahan jaringan."); }
   };
 
   const handleLogout = () => { setIsAuthenticated(false); localStorage.removeItem('cf_auth_session'); queryClient.clear(); };
 
-  const { data: chartData = [], isLoading: isLoadingChart } = useQuery<ChartSummaryData[]>({
-    queryKey: ['summary', filterType], queryFn: async () => { const res = await fetch(`/api/summary?type=${filterType}`); const json = await res.json(); return json.data; }, enabled: isAuthenticated
-  });
-
-  const { data: transactions = [], isLoading: isLoadingTransactions } = useQuery<Transaction[]>({
-    queryKey: ['transactions', filterType], queryFn: async () => { const res = await fetch(`/api/transactions?filter=${filterType}`); const json = await res.json(); return json.data; }, enabled: isAuthenticated
-  });
-
   const submitTransaction = useMutation({
     mutationFn: async (payload: { id: number | null, data: Omit<Transaction, 'id'> }) => {
       const isEdit = payload.id !== null;
-      const res = await fetch(isEdit ? `/api/transactions/${payload.id}` : '/api/transactions', { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload.data) });
+      const res = await fetch(isEdit ? `/api/transactions/${payload.id}` : '/api/transactions', { 
+        method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeader() }, body: JSON.stringify(payload.data) 
+      });
       return await res.json();
     },
     onSuccess: () => {
@@ -121,19 +154,16 @@ export default function App() {
   });
 
   const deleteTransaction = useMutation({
-    mutationFn: async (id: number) => { const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' }); return await res.json(); },
+    mutationFn: async (id: number) => { const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE', headers: getAuthHeader() }); return await res.json(); },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['summary'] }); queryClient.invalidateQueries({ queryKey: ['transactions'] }); }
-  });
-
-  // --- GOALS API ---
-  const { data: goals = [], isLoading: isLoadingGoals } = useQuery<Goal[]>({
-    queryKey: ['goals'], queryFn: async () => { const res = await fetch(`/api/goals`); const json = await res.json(); return json.data || []; }, enabled: isAuthenticated
   });
 
   const submitGoal = useMutation({
     mutationFn: async (payload: { id: number | null, data: Omit<Goal, 'id'> }) => {
       const isEdit = payload.id !== null;
-      const res = await fetch(isEdit ? `/api/goals/${payload.id}` : '/api/goals', { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload.data) });
+      const res = await fetch(isEdit ? `/api/goals/${payload.id}` : '/api/goals', { 
+        method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeader() }, body: JSON.stringify(payload.data) 
+      });
       return await res.json();
     },
     onSuccess: () => {
@@ -145,15 +175,37 @@ export default function App() {
 
   const updateGoalProgress = useMutation({
     mutationFn: async (payload: { id: number, data: Goal }) => {
-      const res = await fetch(`/api/goals/${payload.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload.data) });
+      const res = await fetch(`/api/goals/${payload.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...getAuthHeader() }, body: JSON.stringify(payload.data) });
       return await res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['goals'] })
   });
 
   const deleteGoal = useMutation({
-    mutationFn: async (id: number) => { const res = await fetch(`/api/goals/${id}`, { method: 'DELETE' }); return await res.json(); },
+    mutationFn: async (id: number) => { const res = await fetch(`/api/goals/${id}`, { method: 'DELETE', headers: getAuthHeader() }); return await res.json(); },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['goals'] })
+  });
+
+  const updateProfile = useMutation({
+    mutationFn: async (data: { name: string, avatar: string | null }) => {
+      const res = await fetch('/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...getAuthHeader() }, body: JSON.stringify(data) });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || json.message);
+      return json;
+    },
+    onSuccess: () => { alert('Profil berhasil diperbarui!'); queryClient.invalidateQueries({ queryKey: ['profile'] }); },
+    onError: (err: Error) => alert(err.message)
+  });
+
+  const updatePassword = useMutation({
+    mutationFn: async (data: typeof passwordForm) => { // <--- UBAH any MENJADI typeof passwordForm DI SINI
+      const res = await fetch('/api/password', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...getAuthHeader() }, body: JSON.stringify(data) });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || json.message);
+      return json;
+    },
+    onSuccess: () => { alert('Password berhasil diubah!'); setPasswordForm({ old_password: '', new_password: '' }); },
+    onError: (err: Error) => alert(err.message)
   });
 
   // --- DERIVED STATE (KALKULASI OTOMATIS) ---
@@ -169,7 +221,23 @@ export default function App() {
     return Object.keys(counts).map(key => ({ name: key, value: counts[key] }));
   }, [transactions]);
 
+  // Fitur Pencarian Lokal
+  const filteredTransactions = useMemo(() => {
+    if (!searchQuery) return transactions;
+    const lowerQ = searchQuery.toLowerCase();
+    return transactions.filter(t => 
+      t.category.toLowerCase().includes(lowerQ) || 
+      (t.description && t.description.toLowerCase().includes(lowerQ))
+    );
+  }, [transactions, searchQuery]);
+
   // --- HANDLERS ---
+  const changeMenu = (menu: MenuType) => { 
+    setActiveMenu(menu); 
+    setIsMobileMenuOpen(false); 
+    setSearchQuery(''); // Reset pencarian saat pindah menu
+  };
+
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target; setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -217,7 +285,16 @@ export default function App() {
     if (window.confirm("Hapus Goal ini beserta riwayat tabungannya?")) { deleteGoal.mutate(id); }
   };
 
-  // Navigasi Shortcut dari Wallet ke Form Dashboard
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 1024 * 1024) return alert("Ukuran gambar terlalu besar! Maksimal 1MB.");
+      const reader = new FileReader();
+      reader.onloadend = () => setProfileForm({ ...profileForm, avatar: reader.result as string });
+      reader.readAsDataURL(file);
+    }
+  };
+
   const triggerWalletAction = (type: 'pemasukan' | 'pengeluaran') => {
     setActiveMenu('dashboard');
     setFormData(prev => ({ ...prev, type, category: '' }));
@@ -251,11 +328,11 @@ export default function App() {
     );
   }
 
-  // --- LAYAR UTAMA DENGAN ROUTING ---
+  // --- LAYAR UTAMA ---
   return (
     <div className="flex h-screen w-full bg-background text-primary font-sans overflow-hidden transition-colors duration-300 relative">
       
-      {/* SIDEBAR (Desktop) */}
+      {/* SIDEBAR */}
       <aside className="hidden lg:flex flex-col w-64 bg-surface border-r border-border transition-colors duration-300">
         <div className="h-20 flex items-center px-6 gap-3 border-b border-transparent">
           <div className="text-accent"><Icons.Target /></div>
@@ -263,10 +340,10 @@ export default function App() {
         </div>
         
         <nav className="flex-1 px-4 py-6 space-y-2">
-          <button onClick={() => setActiveMenu('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'dashboard' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}><Icons.Home /> Dashboard</button>
-          <button onClick={() => setActiveMenu('goals')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'goals' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}><Icons.Target /> Goals Plans</button>
-          <button onClick={() => setActiveMenu('wallet')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'wallet' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}><Icons.Wallet /> Wallet</button>
-          <button onClick={() => setActiveMenu('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'settings' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}><Icons.Settings /> Settings</button>
+          <button onClick={() => changeMenu('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'dashboard' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}><Icons.Home /> Dashboard</button>
+          <button onClick={() => changeMenu('goals')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'goals' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}><Icons.Target /> Goals Plans</button>
+          <button onClick={() => changeMenu('wallet')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'wallet' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}><Icons.Wallet /> Wallet</button>
+          <button onClick={() => changeMenu('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeMenu === 'settings' ? 'bg-accent text-white shadow-md shadow-accent/10' : 'text-muted hover:text-primary hover:bg-background'}`}><Icons.Settings /> Settings</button>
         </nav>
 
         <div className="p-4">
@@ -277,7 +354,7 @@ export default function App() {
       {/* AREA KONTEN UTAMA */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         
-        {/* HEADER ATAS */}
+        {/* HEADER */}
         <header className="h-20 bg-surface border-b border-border flex items-center justify-between px-6 lg:px-8 transition-colors duration-300 shrink-0">
           <div className="flex items-center gap-4">
             <button className="lg:hidden p-2 text-muted" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
@@ -286,26 +363,22 @@ export default function App() {
             <h1 className="text-xl lg:text-2xl font-bold text-primary capitalize">{activeMenu === 'goals' ? 'Goals Plans' : activeMenu}</h1>
           </div>
 
-          <div className="flex items-center gap-4 lg:gap-6">
-            <div className="hidden md:flex items-center bg-background border border-border rounded-full px-4 py-2">
-              <span className="text-muted mr-2"><Icons.Search /></span>
-              <input type="text" placeholder="Search..." className="bg-transparent outline-none text-sm w-48 text-primary" />
-            </div>
-            <div className="flex items-center gap-3">
-              <ThemeToggle isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
-              <button className="p-2 text-muted hover:text-primary transition-colors relative"><Icons.Bell /><span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger rounded-full"></span></button>
-              <div className="w-9 h-9 rounded-full bg-accent text-white flex items-center justify-center font-bold shadow-sm ml-2">A</div>
-            </div>
+          <div className="flex items-center gap-3 lg:gap-5">
+            <ThemeToggle isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+            <button className="p-2 text-muted hover:text-primary transition-colors relative"><Icons.Bell /><span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger rounded-full"></span></button>
+            {userProfile?.avatar ? (
+              <img src={userProfile.avatar} alt="Profile" className="w-9 h-9 rounded-full object-cover border border-border shadow-sm ml-2" />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-accent text-white flex items-center justify-center font-bold shadow-sm ml-2">{userProfile?.name?.charAt(0).toUpperCase() || 'U'}</div>
+            )}
           </div>
         </header>
 
-        {/* KONTEN DINAMIS BERDASARKAN MENU YANG AKTIF */}
+        {/* KONTEN */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
             
-            {/* ========================================================================= */}
             {/* VIEW 1: DASHBOARD */}
-            {/* ========================================================================= */}
             {activeMenu === 'dashboard' && (
               <>
                 <div className="flex items-center justify-between pb-2">
@@ -351,7 +424,7 @@ export default function App() {
                       </div>
                       <div><input type="number" name="amount" placeholder="Jumlah Uang" value={formData.amount} onChange={handleInputChange} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm focus:border-accent outline-none" required /></div>
                       <div className="grid grid-cols-2 gap-4">
-                        <select name="category" value={formData.category} onChange={handleInputChange} className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm focus:border-accent outline-none" required>
+                        <select name="category" value={formData.category} onChange={handleInputChange} className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm focus:border-accent outline-none appearance-none" required>
                           <option value="" disabled>Kategori...</option>
                           {formData.type === 'pemasukan' ? (<><option value="Gaji">Gaji</option><option value="Freelance">Freelance</option></>) : (<><option value="Makanan">Makanan</option><option value="Transportasi">Transport</option></>)}
                         </select>
@@ -367,50 +440,57 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-                  <div className="lg:col-span-2 bg-surface border border-border rounded-[20px] p-6 shadow-sm overflow-x-auto">
-                    <h3 className="text-lg font-bold text-primary mb-6">Recent Activity</h3>
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="text-muted border-b border-border">
-                          <th className="pb-3 font-medium w-32">Kategori</th>
-                          <th className="pb-3 font-medium">Keterangan</th>
-                          <th className="pb-3 font-medium">Tanggal</th>
-                          <th className="pb-3 font-medium text-right">Jumlah</th>
-                          <th className="pb-3 font-medium text-center w-28">Aksi</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {isLoadingTransactions ? (
-                          <tr><td colSpan={5} className="py-6 text-center text-muted font-medium">Memuat data...</td></tr>
-                        ) : transactions.length === 0 ? (
-                          <tr><td colSpan={5} className="py-6 text-center text-muted">Belum ada data.</td></tr>
-                        ) : transactions.slice(0, 5).map((trx) => (
-                          <tr key={trx.id} className="group hover:bg-background/50 transition">
-                            <td className="py-4 font-semibold text-primary">{trx.category}</td>
-                            <td className="py-4 text-muted truncate max-w-37.5">{trx.description || '-'}</td>
-                            <td className="py-4 text-muted">{new Date(trx.transaction_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                            <td className={`py-4 font-bold text-right ${trx.type === 'pemasukan' ? 'text-accent' : 'text-danger'}`}>
-                              {trx.type === 'pemasukan' ? '+' : '-'}{formatRupiah(trx.amount)}
-                            </td>
-                            <td className="py-4 text-center">
-                              <div className="flex justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => startEdit(trx)} className="text-muted hover:text-primary transition font-medium">Edit</button>
-                                <button onClick={() => handleDelete(trx.id)} className="text-danger hover:opacity-80 transition font-medium">Hapus</button>
-                              </div>
-                            </td>
+                  <div className="lg:col-span-2 bg-surface border border-border rounded-[20px] p-6 shadow-sm overflow-hidden">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-lg font-bold text-primary">Recent Activity</h3>
+                      {/* Search Bar Lokal */}
+                      <div className="flex items-center bg-background border border-border rounded-lg px-3 py-1.5 w-48">
+                        <span className="text-muted mr-2"><Icons.Search /></span>
+                        <input type="text" placeholder="Cari..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-transparent outline-none text-xs w-full text-primary" />
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className="text-muted border-b border-border">
+                            <th className="pb-3 font-medium w-32">Kategori</th>
+                            <th className="pb-3 font-medium">Keterangan</th>
+                            <th className="pb-3 font-medium">Tanggal</th>
+                            <th className="pb-3 font-medium text-right">Jumlah</th>
+                            <th className="pb-3 font-medium text-center w-28">Aksi</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {isLoadingTransactions ? (
+                            <tr><td colSpan={5} className="py-6 text-center text-muted font-medium">Memuat data...</td></tr>
+                          ) : filteredTransactions.length === 0 ? (
+                            <tr><td colSpan={5} className="py-6 text-center text-muted">Data tidak ditemukan.</td></tr>
+                          ) : filteredTransactions.slice(0, 5).map((trx) => (
+                            <tr key={trx.id} className="group hover:bg-background/50 transition">
+                              <td className="py-4 font-semibold text-primary">{trx.category}</td>
+                              <td className="py-4 text-muted truncate max-w-37.5">{trx.description || '-'}</td>
+                              <td className="py-4 text-muted">{new Date(trx.transaction_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                              <td className={`py-4 font-bold text-right ${trx.type === 'pemasukan' ? 'text-accent' : 'text-danger'}`}>
+                                {trx.type === 'pemasukan' ? '+' : '-'}{formatRupiah(trx.amount)}
+                              </td>
+                              <td className="py-4 text-center">
+                                <div className="flex justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button onClick={() => startEdit(trx)} className="text-muted hover:text-primary transition font-medium">Edit</button>
+                                  <button onClick={() => handleDelete(trx.id)} className="text-danger hover:opacity-80 transition font-medium">Hapus</button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                   <div className="bg-surface border border-border rounded-[20px] p-6 shadow-sm"><DistributionChart data={distributionData} /></div>
                 </div>
               </>
             )}
 
-            {/* ========================================================================= */}
             {/* VIEW 2: GOALS PLANS */}
-            {/* ========================================================================= */}
             {activeMenu === 'goals' && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center bg-surface border border-border rounded-[20px] p-4 px-6 shadow-sm overflow-x-auto">
@@ -431,7 +511,7 @@ export default function App() {
                     const percentage = Math.min(Math.round((goal.saved_amount / goal.target_amount) * 100), 100);
                     return (
                       <div key={goal.id} className="bg-surface border border-border rounded-[20px] p-6 shadow-sm flex flex-col gap-4 relative group">
-                        <button onClick={() => handleDeleteGoal(goal.id)} className="absolute top-4 right-4 p-1.5 text-danger opacity-0 group-hover:opacity-100 bg-danger/10 rounded-lg transition" title="Hapus Goal"><Icons.Search /></button> {/* Reuse icon search for now or use specific trash icon */}
+                        <button onClick={() => handleDeleteGoal(goal.id)} className="absolute top-4 right-4 p-1.5 text-danger opacity-0 group-hover:opacity-100 bg-danger/10 rounded-lg transition" title="Hapus Goal"><Icons.Search /></button>
                         
                         <div className="flex justify-between items-start">
                           <div className="flex gap-4 items-center">
@@ -465,14 +545,11 @@ export default function App() {
               </div>
             )}
 
-            {/* ========================================================================= */}
             {/* VIEW 3: WALLET */}
-            {/* ========================================================================= */}
             {activeMenu === 'wallet' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
                 <div className="lg:col-span-1 space-y-6">
-                  {/* Kartu Saldo Otomatis dari Kalkulasi */}
                   <div className="bg-brand text-white border border-brand rounded-[20px] p-6 shadow-xl relative overflow-hidden">
                     <p className="text-sm font-medium text-white/80 flex items-center gap-2"><Icons.Wallet /> Balance</p>
                     <p className="text-4xl font-bold mt-4">{formatRupiah(summary.selisih)}</p>
@@ -502,17 +579,18 @@ export default function App() {
                 <div className="lg:col-span-2 bg-surface border border-border rounded-[20px] p-6 shadow-sm">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-bold text-primary">Transaction History</h3>
-                    <div className="flex text-xs font-medium text-muted gap-4">
-                      <span className="flex items-center gap-1 border-b border-accent pb-1 text-primary">Newest</span>
+                    <div className="flex items-center bg-background border border-border rounded-lg px-3 py-1.5 w-48">
+                      <span className="text-muted mr-2"><Icons.Search /></span>
+                      <input type="text" placeholder="Cari..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-transparent outline-none text-xs w-full text-primary" />
                     </div>
                   </div>
                   
                   <div className="space-y-4">
                     {isLoadingTransactions ? (
                        <div className="text-center py-8 text-muted">Memuat data dompet...</div>
-                    ) : transactions.length === 0 ? (
-                       <div className="text-center py-8 text-muted">Belum ada aktivitas dompet.</div>
-                    ) : transactions.map(trx => (
+                    ) : filteredTransactions.length === 0 ? (
+                       <div className="text-center py-8 text-muted">Data tidak ditemukan.</div>
+                    ) : filteredTransactions.map(trx => (
                       <div key={trx.id} className="flex justify-between items-center p-4 bg-background border border-border rounded-xl hover:border-accent transition-colors">
                         <div className="flex gap-4 items-center">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${trx.type === 'pemasukan' ? 'bg-accent/10 text-accent' : 'bg-danger/10 text-danger'}`}>
@@ -534,13 +612,76 @@ export default function App() {
 
               </div>
             )}
+
+            {/* VIEW 4: SETTINGS (PROFIL & PASSWORD) */}
+            {activeMenu === 'settings' && (
+              <div className="max-w-4xl mx-auto space-y-8">
+                
+                {/* Form Update Profil */}
+                <div className="bg-surface border border-border rounded-[20px] p-6 lg:p-8 shadow-sm">
+                  <h3 className="text-xl font-bold text-primary mb-6">Profile Settings</h3>
+                  <div className="flex flex-col md:flex-row gap-8 items-start">
+                    
+                    {/* Avatar Upload */}
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                        <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-border shadow-sm">
+                          {profileForm.avatar ? (
+                            <img src={profileForm.avatar} className="w-full h-full object-cover" alt="Profile" />
+                          ) : (
+                            <div className="w-full h-full bg-accent text-white flex items-center justify-center text-3xl font-bold">{profileForm.name?.charAt(0).toUpperCase() || 'U'}</div>
+                          )}
+                        </div>
+                        <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="text-white"><Icons.Camera /></span>
+                        </div>
+                      </div>
+                      <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
+                      <span className="text-xs font-semibold text-muted">Click to change</span>
+                    </div>
+                    
+                    {/* Input Nama & Email */}
+                    <div className="flex-1 w-full space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-muted mb-1.5">Nama Lengkap</label>
+                        <input type="text" value={profileForm.name} onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary outline-none focus:border-accent" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-muted mb-1.5">Email (Tidak bisa diubah)</label>
+                        <input type="email" value={userProfile?.email || ''} disabled className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-muted outline-none cursor-not-allowed opacity-70" />
+                      </div>
+                      <button onClick={() => updateProfile.mutate(profileForm)} disabled={updateProfile.isPending} className="px-6 py-2.5 bg-accent text-white font-bold rounded-lg shadow-md hover:opacity-90 transition disabled:opacity-50">
+                        {updateProfile.isPending ? 'Menyimpan...' : 'Save Profile'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Form Ganti Password */}
+                <div className="bg-surface border border-border rounded-[20px] p-6 lg:p-8 shadow-sm">
+                  <h3 className="text-xl font-bold text-primary mb-6">Change Password</h3>
+                  <form onSubmit={(e) => { e.preventDefault(); updatePassword.mutate(passwordForm); }} className="max-w-md space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-muted mb-1.5">Password Lama</label>
+                      <input type="password" value={passwordForm.old_password} onChange={(e) => setPasswordForm({ ...passwordForm, old_password: e.target.value })} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary outline-none focus:border-accent" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-muted mb-1.5">Password Baru</label>
+                      <input type="password" value={passwordForm.new_password} onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary outline-none focus:border-accent" required />
+                    </div>
+                    <button type="submit" disabled={updatePassword.isPending} className="px-6 py-2.5 bg-brand text-white font-bold rounded-lg shadow-md hover:opacity-90 transition disabled:opacity-50">
+                      {updatePassword.isPending ? 'Memproses...' : 'Update Password'}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
+
           </div>
         </main>
       </div>
 
-      {/* ========================================================================= */}
       {/* MODAL POPUP: ADD / EDIT GOAL */}
-      {/* ========================================================================= */}
       {isGoalModalOpen && (
         <div className="fixed inset-0 z-60 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-surface border border-border rounded-[20px] p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
@@ -582,7 +723,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MOBILE OVERLAY MENU (Jika dibuka) */}
+      {/* MOBILE OVERLAY MENU */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 lg:hidden flex">
           <div className="w-64 h-full bg-surface border-r border-border p-6 flex flex-col">
@@ -591,9 +732,10 @@ export default function App() {
               <button onClick={() => setIsMobileMenuOpen(false)} className="text-muted"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
             <nav className="flex-1 space-y-2">
-              <button onClick={() => { setActiveMenu('dashboard'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'dashboard' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Home /> Dashboard</button>
-              <button onClick={() => { setActiveMenu('goals'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'goals' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Target /> Goals Plans</button>
-              <button onClick={() => { setActiveMenu('wallet'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'wallet' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Wallet /> Wallet</button>
+              <button onClick={() => changeMenu('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'dashboard' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Home /> Dashboard</button>
+              <button onClick={() => changeMenu('goals')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'goals' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Target /> Goals Plans</button>
+              <button onClick={() => changeMenu('wallet')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'wallet' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Wallet /> Wallet</button>
+              <button onClick={() => changeMenu('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'settings' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Settings /> Settings</button>
             </nav>
           </div>
         </div>
