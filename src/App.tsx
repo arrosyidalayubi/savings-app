@@ -306,7 +306,9 @@ export default function App() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-background flex flex-col justify-center items-center p-4 transition-colors duration-300">
-        <div className="absolute top-6 right-6"><ThemeToggle isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} /></div>
+        <div className="absolute top-6 right-6">
+          <ThemeToggle isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+        </div>
         <div className="w-full max-w-md bg-surface border border-border rounded-[20px] p-8 shadow-2xl transition-colors duration-300">
           <div className="flex justify-center items-center gap-3 mb-8">
             <Icons.Target />
@@ -388,13 +390,15 @@ export default function App() {
             {/* VIEW 1: DASHBOARD */}
             {activeMenu === 'dashboard' && (
               <>
-                <div className="flex items-center justify-between pb-2">
-                  <div className="flex gap-2">
+                <div className="flex items-center justify-between pb-2 gap-2">
+                  <div className="flex gap-2 overflow-x-auto pb-1">
                     {(['harian', 'bulanan', 'tahunan'] as FilterType[]).map((type) => (
                       <button key={type} onClick={() => setFilterType(type)} className={`px-5 py-2 text-sm font-semibold rounded-full capitalize transition-all ${filterType === type ? 'bg-accent text-white shadow-md' : 'bg-surface border border-border text-muted hover:text-primary'}`}>{type}</button>
                     ))}
                   </div>
-                  <button onClick={() => openGoalModal()} className="px-4 py-2 bg-accent text-white text-sm font-semibold rounded-lg shadow-md hover:opacity-90 flex items-center gap-2"><Icons.Plus /> Add Goal</button>
+                  <button onClick={() => openGoalModal()} className="px-4 py-2 bg-accent text-white text-sm font-semibold rounded-lg shadow-md hover:opacity-90 flex items-center gap-2 shrink-0">
+                    <Icons.Plus /> <span className="hidden sm:inline">Tambah Target</span>
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -418,7 +422,7 @@ export default function App() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                   <div className="lg:col-span-2 bg-surface border border-border rounded-[20px] p-6 shadow-sm flex flex-col">
-                    <div className="flex justify-between items-center mb-6"><h3 className="text-lg font-bold text-primary">Analytics</h3></div>
+                    <div className="flex justify-between items-center mb-6"><h3 className="text-lg font-bold text-primary">Analisis</h3></div>
                     <div className="flex-1 w-full min-h-62.5"><WaveChart data={chartData} loading={isLoadingChart} filterType={filterType} /></div>
                   </div>
 
@@ -433,11 +437,35 @@ export default function App() {
                       <div className="grid grid-cols-2 gap-4">
                         <select name="category" value={formData.category} onChange={handleInputChange} className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm focus:border-accent outline-none appearance-none" required>
                           <option value="" disabled>Kategori...</option>
-                          {formData.type === 'pemasukan' ? (<><option value="Gaji">Gaji</option><option value="Freelance">Freelance</option></>) : (<><option value="Makanan">Makanan</option><option value="Transportasi">Transport</option></>)}
+                          {formData.type === 'pemasukan' ? (
+                            <>
+                              <option value="Gaji">Gaji</option>
+                              <option value="Freelance">Freelance</option>
+                              {/* Tambahan kategori Lainnya untuk Pemasukan */}
+                              <option value="Lainnya">Lainnya</option> 
+                            </>
+                          ) : (
+                            <>
+                              <option value="Makanan">Makanan</option>
+                              <option value="Transportasi">Transport</option>
+                              {/* Tambahan kategori Lainnya untuk Pengeluaran */}
+                              <option value="Lainnya">Lainnya</option> 
+                            </>
+                          )}
                         </select>
                         <input type="date" name="transaction_date" value={formData.transaction_date} onChange={handleInputChange} className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm focus:border-accent outline-none" required />
                       </div>
-                      <div><input type="text" name="description" placeholder="Keterangan..." value={formData.description} onChange={handleInputChange} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm focus:border-accent outline-none" /></div>
+                      
+                      {/* Opsional: Membuat Keterangan menjadi Wajib (required) jika pengguna memilih "Lainnya" */}
+                      <div>
+                        <input type="text" name="description" placeholder="Keterangan..." value={formData.description} onChange={handleInputChange} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm focus:border-accent outline-none" required={formData.category === 'Lainnya'} />
+                        {formData.category === 'Lainnya' && !formData.description.trim() && (
+                          <p className="text-[11px] text-danger mt-1.5 ml-1 font-medium animate-in slide-in-from-top-1">
+                            * Silakan sebutkan rincian untuk kategori Lainnya
+                          </p>
+                        )}
+                      </div>
+                      
                       <div className="flex gap-2">
                         {editingId && <button type="button" onClick={() => { setEditingId(null); setFormData({ type: 'pengeluaran', amount: '', category: '', description: '', transaction_date: new Date().toISOString().split('T')[0] }); }} className="flex-1 py-2.5 bg-background border border-border text-muted rounded-lg text-sm font-semibold">Batal</button>}
                         <button type="submit" disabled={submitTransaction.isPending} className="flex-1 py-2.5 bg-accent text-white rounded-lg text-sm font-semibold shadow-md">{submitTransaction.isPending ? 'Loading...' : 'Simpan'}</button>
@@ -449,7 +477,7 @@ export default function App() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                   <div className="lg:col-span-2 bg-surface border border-border rounded-[20px] p-6 shadow-sm overflow-hidden">
                     <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-lg font-bold text-primary">Recent Activity</h3>
+                      <h3 className="text-lg font-bold text-primary">Aktivitas Terkini</h3>
                       <div className="flex items-center bg-background border border-border rounded-lg px-3 py-1.5 w-48">
                         <span className="text-muted mr-2"><Icons.Search /></span>
                         <input type="text" placeholder="Cari..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-transparent outline-none text-xs w-full text-primary" />
@@ -534,18 +562,18 @@ export default function App() {
               <div className="space-y-6">
                 <div className="flex justify-between items-center bg-surface border border-border rounded-[20px] p-4 px-6 shadow-sm overflow-x-auto">
                   <div className="flex gap-4 min-w-max">
-                    <button className="text-sm font-bold text-primary border-b-2 border-accent pb-1">All Goals ({goals.length})</button>
+                    <button className="text-sm font-bold text-primary border-b-2 border-accent pb-1">Semua Target ({goals.length})</button>
                     <button className="text-sm font-medium text-muted pb-1">Active ({goals.filter(g => g.status === 'Active').length})</button>
                     <button className="text-sm font-medium text-muted pb-1">Completed ({goals.filter(g => g.status === 'Completed').length})</button>
                   </div>
-                  <button onClick={() => openGoalModal()} className="px-4 py-2 bg-accent text-white text-sm font-semibold rounded-lg shadow-md flex items-center gap-2 min-w-max ml-4"><Icons.Plus /> Add Goal</button>
+                  <button onClick={() => openGoalModal()} className="px-4 py-2 bg-accent text-white text-sm font-semibold rounded-lg shadow-md flex items-center gap-2 min-w-max ml-4"><Icons.Plus /> Tambah Target</button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {isLoadingGoals ? (
                     <div className="col-span-full py-12 text-center text-muted font-medium">Memuat data tabungan...</div>
                   ) : goals.length === 0 ? (
-                    <div className="col-span-full py-12 text-center text-muted font-medium border border-dashed border-border rounded-[20px]">Belum ada Goal tabungan yang dibuat.</div>
+                    <div className="col-span-full py-12 text-center text-muted font-medium border border-dashed border-border rounded-[20px]">Belum ada Target tabungan yang dibuat.</div>
                   ) : goals.map(goal => {
                     const percentage = Math.min(Math.round((goal.saved_amount / goal.target_amount) * 100), 100);
                     return (
@@ -590,7 +618,7 @@ export default function App() {
                 
                 <div className="lg:col-span-1 space-y-6">
                   <div className="bg-brand text-white border border-brand rounded-[20px] p-6 shadow-xl relative overflow-hidden">
-                    <p className="text-sm font-medium text-white/80 flex items-center gap-2"><Icons.Wallet /> Balance</p>
+                    <p className="text-sm font-medium text-white/80 flex items-center gap-2"><Icons.Wallet /> Saldo</p>
                     <p className="text-4xl font-bold mt-4">{formatRupiah(summary.selisih)}</p>
                     <div className="flex items-center gap-4 mt-6">
                       <span className="flex items-center gap-1 text-xs text-white/80"><span className="w-2 h-2 rounded-full bg-accent"></span> In: {formatRupiah(summary.pemasukan)}</span>
@@ -617,7 +645,7 @@ export default function App() {
 
                 <div className="lg:col-span-2 bg-surface border border-border rounded-[20px] p-6 shadow-sm">
                   <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-bold text-primary">Transaction History</h3>
+                    <h3 className="text-lg font-bold text-primary">Riwayat Transaksi</h3>
                     <div className="flex items-center bg-background border border-border rounded-lg px-3 py-1.5 w-48">
                       <span className="text-muted mr-2"><Icons.Search /></span>
                       <input type="text" placeholder="Cari..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-transparent outline-none text-xs w-full text-primary" />
@@ -658,7 +686,7 @@ export default function App() {
                 
                 {/* Form Update Profil */}
                 <div className="bg-surface border border-border rounded-[20px] p-6 lg:p-8 shadow-sm">
-                  <h3 className="text-xl font-bold text-primary mb-6">Profile Settings</h3>
+                  <h3 className="text-xl font-bold text-primary mb-6">Pengaturan Profil</h3>
                   <div className="flex flex-col md:flex-row gap-8 items-start">
                     
                     {/* Avatar Upload */}
@@ -698,7 +726,7 @@ export default function App() {
 
                 {/* Form Ganti Password */}
                 <div className="bg-surface border border-border rounded-[20px] p-6 lg:p-8 shadow-sm">
-                  <h3 className="text-xl font-bold text-primary mb-6">Change Password</h3>
+                  <h3 className="text-xl font-bold text-primary mb-6">Ganti Password</h3>
                   <form onSubmit={(e) => { e.preventDefault(); updatePassword.mutate(passwordForm); }} className="max-w-md space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-muted mb-1.5">Password Lama</label>
@@ -724,25 +752,25 @@ export default function App() {
       {isGoalModalOpen && (
         <div className="fixed inset-0 z-60 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-surface border border-border rounded-[20px] p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold text-primary mb-6">{goalFormData.id ? 'Edit Your Goal' : 'Create A New Goal'}</h3>
+            <h3 className="text-xl font-bold text-primary mb-6">{goalFormData.id ? 'Sunting Target' : 'Buat Target Baru'}</h3>
             <form onSubmit={handleGoalSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-muted mb-1.5">Goal Name *</label>
+                  <label className="block text-xs font-medium text-muted mb-1.5">Nama Target</label>
                   <input type="text" name="name" value={goalFormData.name} onChange={handleGoalInputChange} placeholder="e.g. New Laptop" className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary focus:border-accent outline-none" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-muted mb-1.5">Target Amount (Rp) *</label>
+                  <label className="block text-xs font-medium text-muted mb-1.5">Jumlah Target (Rp)</label>
                   <input type="number" name="target_amount" value={goalFormData.target_amount} onChange={handleGoalInputChange} placeholder="15000000" className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary focus:border-accent outline-none" required />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-muted mb-1.5">Deadline *</label>
+                  <label className="block text-xs font-medium text-muted mb-1.5">Deadline</label>
                   <input type="date" name="deadline" value={goalFormData.deadline} onChange={handleGoalInputChange} className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-primary focus:border-accent outline-none" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-muted mb-1.5">Icon Theme</label>
+                  <label className="block text-xs font-medium text-muted mb-1.5">Kategori</label>
                   <select name="icon" value={goalFormData.icon} onChange={handleGoalInputChange} className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-primary focus:border-accent outline-none appearance-none">
                     <option value="Target">Target (Umum)</option>
                     <option value="Laptop">Laptop (Gadget)</option>
@@ -776,14 +804,14 @@ export default function App() {
             </div>
             <nav className="flex-1 space-y-2">
               <button onClick={() => changeMenu('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'dashboard' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Home /> Dashboard</button>
-              <button onClick={() => changeMenu('goals')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'goals' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Target /> Goals Plans</button>
-              <button onClick={() => changeMenu('wallet')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'wallet' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Wallet /> Wallet</button>
-              <button onClick={() => changeMenu('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'settings' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Settings /> Settings</button>
+              <button onClick={() => changeMenu('goals')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'goals' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Target /> Target</button>
+              <button onClick={() => changeMenu('wallet')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'wallet' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Wallet /> Dompet</button>
+              <button onClick={() => changeMenu('settings')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium ${activeMenu === 'settings' ? 'bg-accent text-white' : 'text-muted'}`}><Icons.Settings /> Pengaturan</button>
             </nav>
             
             {/* TAMBAHAN: TOMBOL LOGOUT UNTUK MOBILE */}
             <div className="pt-6 border-t border-border">
-              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-danger hover:bg-danger/10 rounded-xl font-medium transition"><Icons.Logout /> Logout</button>
+              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-danger hover:bg-danger/10 rounded-xl font-medium transition"><Icons.Logout /> Keluar</button>
             </div>
           </div>
         </div>
