@@ -16,10 +16,10 @@ export default function WalletView(props: WalletViewProps) {
   const { summary, transactions, walletMonth, setWalletMonth, searchQuery, setSearchQuery, formatRupiah, triggerWalletAction } = props;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
       
       {/* Kolom Kiri: Ringkasan Saldo & Aksi Cepat */}
-      <div className="lg:col-span-1 space-y-6">
+      <div className="lg:col-span-4 space-y-6">
         <div className="bg-brand text-white border border-brand rounded-[20px] p-6 shadow-xl relative overflow-hidden">
           <p className="text-sm font-medium text-white/80 flex items-center gap-2"><Icons.Wallet /> Saldo Tersedia</p>
           <p className="text-4xl font-bold mt-4">{formatRupiah(summary.selisih)}</p>
@@ -48,7 +48,7 @@ export default function WalletView(props: WalletViewProps) {
       </div>
 
       {/* Kolom Kanan: Riwayat Detail dengan Filter */}
-      <div className="bg-surface rounded-2xl p-6 border border-border flex-1 flex flex-col h-150 shadow-sm">
+      <div className="lg:col-span-8 bg-surface rounded-2xl p-6 border border-border flex-1 flex flex-col h-150 shadow-sm">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <h2 className="text-lg font-bold text-primary">Riwayat Transaksi</h2>
           <div className="flex gap-2 w-full sm:w-auto">
