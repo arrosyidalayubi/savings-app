@@ -60,10 +60,18 @@ const generateCompleteData = (apiData: ChartSummaryData[], filterType: FilterTyp
 
   // 3. Looping Pembuatan Kalender
   if (filterType === 'harian') {
-    // Generate 7 Hari Terakhir
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(today.getDate() - i);
+    // 1. Cari tanggal untuk hari Senin di minggu ini
+    const dayOfWeek = today.getDay(); // 0 = Minggu, 1 = Senin, 2 = Selasa, dst.
+    // Jika hari ini Minggu (0), mundur 6 hari. Jika selain Minggu, mundur (dayOfWeek - 1) hari.
+    const distanceToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - distanceToMonday);
+
+    // 2. Generate 7 Hari berurutan mulai dari Senin s/d Minggu
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
       result.push(aggregateData(d, false));
     }
   } else if (filterType === 'bulanan') {

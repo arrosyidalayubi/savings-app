@@ -139,7 +139,7 @@ export default function DashboardView(props: DashboardViewProps) {
                 ) : filteredTransactions.slice(0, 15).map((trx) => (
                   <tr key={trx.id} className="group hover:bg-background/50 transition">
                     <td className="py-4 font-semibold text-primary">{trx.category}</td>
-                    <td className="py-4 text-muted truncate max-w-37.5">{trx.description || '-'}</td>
+                    <td className="py-4 text-sm text-muted mt-1 wrap-break-word whitespace-normal leading-relaxed">{trx.description || '-'}</td>
                     <td className="py-4 text-muted">{new Date(trx.transaction_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
                     <td className={`py-4 font-bold text-right ${trx.type === 'pemasukan' ? 'text-accent' : 'text-danger'}`}>
                       {trx.type === 'pemasukan' ? '+' : '-'}{formatRupiah(trx.amount)}
