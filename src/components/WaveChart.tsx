@@ -14,71 +14,88 @@ interface WaveChartProps {
 }
 
 export default function WaveChart({ data, loading, filterType }: WaveChartProps) {
-  const formatRupiah = (num: number): string => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
+  if (loading) {
+    return <div className="w-full h-full flex items-center justify-center text-muted font-medium animate-pulse">Memuat visualisasi data...</div>;
+  }
+
+  if (!data || data.length === 0) {
+    return <div className="w-full h-full flex items-center justify-center text-muted font-medium border border-dashed border-border rounded-xl">Belum ada data transaksi</div>;
+  }
+
+  // Format angka ke Rupiah untuk Tooltip saat di-hover
+  const formatRupiah = (value: number) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
   };
 
-  if (loading) {
-    return (
-      <div className="w-full h-full min-h-62.5 flex items-center justify-center">
-        <span className="text-muted text-sm font-medium animate-pulse">Merender grafik analitik...</span>
-      </div>
-    );
-  }
+  // Format sumbu Y (agar tidak terlalu panjang, misal: Rp 10.000 menjadi 10k)
+  const formatYAxis = (value: number) => {
+    if (value >= 1000000) return `${value / 1000000}M`;
+    if (value >= 1000) return `${value / 1000}k`;
+    return value.toString();
+  };
 
-  if (data.length === 0) {
-    return (
-      <div className="w-full h-full min-h-62.5 flex items-center justify-center">
-        <span className="text-muted text-sm border border-dashed border-border px-6 py-4 rounded-xl">Belum ada data untuk {filterType} ini.</span>
-      </div>
-    );
-  }
+  // Format tanggal di Sumbu X menyesuaikan filter
+  const formatXAxis = (dateStr: string) => {
+    const date = new Date(dateStr);
+    if (filterType === 'tahunan') return date.getFullYear().toString();
+    if (filterType === 'bulanan') return date.toLocaleDateString('id-ID', { month: 'short' });
+    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }); // harian
+  };
 
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={data} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
-        {/* Definisi Gradasi Warna Hijau Aksen */}
+      <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+        {/* Definisi Warna Gradasi Halus */}
         <defs>
-          <linearGradient id="colorNeto" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#13A67B" stopOpacity={0.4}/>
-            <stop offset="95%" stopColor="#13A67B" stopOpacity={0}/>
+          <linearGradient id="colorMasuk" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="colorKeluar" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
           </linearGradient>
         </defs>
+
+        {/* Garis Latar Belakang (Grid) */}
+        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="opacity-10" />
         
-        {/* Grid Latar Belakang ala Buku Milimeter */}
-        <CartesianGrid strokeDasharray="3 3" vertical={true} stroke="var(--border-line)" opacity={0.5} />
+        {/* Sumbu X (Tanggal) & Y (Jumlah) */}
+        <XAxis dataKey="date" tickFormatter={formatXAxis} tick={{ fontSize: 12, fill: '#888' }} tickLine={false} axisLine={false} dy={10} />
+        <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 12, fill: '#888' }} tickLine={false} axisLine={false} />
         
-        {/* Menyembunyikan Label Sumbu (Axis) */}
-        <XAxis dataKey="date" hide />
-        <YAxis hide domain={['auto', 'auto']} />
-        
-        {/* Custom Tooltip mengikuti Tema UI */}
-        <Tooltip
-          cursor={{ stroke: 'var(--border-line)', strokeWidth: 2, strokeDasharray: '3 3' }}
-          content={({ active, payload }) => {
-            if (active && payload && payload.length) {
-              return (
-                <div className="bg-surface border border-border p-3.5 rounded-xl shadow-xl">
-                  <p className="text-xs font-semibold text-muted mb-1">{payload[0].payload.date}</p>
-                  <p className="text-base font-bold text-accent">
-                    {formatRupiah(payload[0].value as number)}
-                  </p>
-                </div>
-              );
-            }
-            return null;
+        {/* Kotak Informasi Saat Disentuh/Hover */}
+        <Tooltip 
+          formatter={(value: unknown, name: unknown) => {
+            // Jika Recharts melempar array, ambil angka pertamanya. Jika bukan, ambil langsung.
+            const rawValue = Array.isArray(value) ? value[0] : value;
+            return [formatRupiah(Number(rawValue) || 0), String(name || '')];
           }}
+          labelFormatter={(label: unknown) => `Tanggal: ${formatXAxis(String(label || ''))}`}
+          contentStyle={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: '12px', color: 'var(--color-primary)' }}
+          itemStyle={{ fontWeight: 'bold' }}
         />
-        
-        {/* Garis Grafik Utama */}
-        <Area
-          type="monotone"
-          dataKey="selisih"
-          stroke="#13A67B"
-          strokeWidth={3}
-          fillOpacity={1}
-          fill="url(#colorNeto)"
-          animationDuration={1500}
+
+        {/* 1. GELOMBANG MERAH (PENGELUARAN) */}
+        <Area 
+          type="monotone" 
+          dataKey="pengeluaran" 
+          name="Pengeluaran" 
+          stroke="#ef4444" 
+          strokeWidth={3} 
+          fill="url(#colorKeluar)" 
+          activeDot={{ r: 6, strokeWidth: 0, fill: '#ef4444' }} 
+        />
+
+        {/* 2. GELOMBANG HIJAU (PEMASUKAN) */}
+        <Area 
+          type="monotone" 
+          dataKey="pemasukan" 
+          name="Pemasukan" 
+          stroke="#10b981" 
+          strokeWidth={3} 
+          fill="url(#colorMasuk)" 
+          activeDot={{ r: 6, strokeWidth: 0, fill: '#10b981' }} 
         />
       </AreaChart>
     </ResponsiveContainer>
