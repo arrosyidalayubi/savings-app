@@ -136,7 +136,7 @@ export default function DashboardView(props: DashboardViewProps) {
                   <tr><td colSpan={5} className="py-6 text-center text-muted font-medium">Memuat data...</td></tr>
                 ) : filteredTransactions.length === 0 ? (
                   <tr><td colSpan={5} className="py-6 text-center text-muted">Data tidak ditemukan.</td></tr>
-                ) : filteredTransactions.slice(0, 5).map((trx) => (
+                ) : filteredTransactions.slice(0, 15).map((trx) => (
                   <tr key={trx.id} className="group hover:bg-background/50 transition">
                     <td className="py-4 font-semibold text-primary">{trx.category}</td>
                     <td className="py-4 text-muted truncate max-w-37.5">{trx.description || '-'}</td>
@@ -162,7 +162,7 @@ export default function DashboardView(props: DashboardViewProps) {
               <div className="py-6 text-center text-muted text-sm">Memuat data...</div>
             ) : filteredTransactions.length === 0 ? (
               <div className="py-6 text-center text-muted text-sm">Data tidak ditemukan.</div>
-            ) : filteredTransactions.slice(0, 5).map((trx) => (
+            ) : filteredTransactions.slice(0, 15).map((trx) => (
               <div key={trx.id} className="bg-background border border-border p-4 rounded-xl flex justify-between items-start gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between mb-1">

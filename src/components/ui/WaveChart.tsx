@@ -13,23 +13,58 @@ const formatXAxis = (tickItem: string, filterType: FilterType) => {
   }
 };
 
-// 2. Fungsi Pengisi Tanggal Kosong (Data Filler)
+// Ganti bagian generateCompleteData di WaveChart.tsx dengan kode ini:
+
 const generateCompleteData = (apiData: ChartSummaryData[], filterType: FilterType): ChartSummaryData[] => {
+  if (!apiData) return [];
   const result: ChartSummaryData[] = [];
   const today = new Date();
-  
-  // Helper untuk format YYYY-MM-DD
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  const formatDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
+  // 1. Helper: Pencocokan tanggal yang kebal terhadap perbedaan format jam/zona waktu API
+  const isSameDay = (apiDateStr: string, targetDate: Date) => {
+    const d = new Date(apiDateStr);
+    return d.getFullYear() === targetDate.getFullYear() &&
+           d.getMonth() === targetDate.getMonth() &&
+           d.getDate() === targetDate.getDate();
+  };
+
+  const isSameMonth = (apiDateStr: string, targetDate: Date) => {
+    const d = new Date(apiDateStr);
+    return d.getFullYear() === targetDate.getFullYear() && d.getMonth() === targetDate.getMonth();
+  };
+
+  // 2. Helper: Menjumlahkan (Sum) semua transaksi di hari/bulan yang sama
+  const aggregateData = (targetDate: Date, isMonthly: boolean = false) => {
+    // Cari semua data yang tanggalnya cocok
+    const matches = apiData.filter(item =>
+      isMonthly ? isSameMonth(item.date, targetDate) : isSameDay(item.date, targetDate)
+    );
+
+    // Jika tidak ada transaksi di hari itu, kembalikan 0
+    if (matches.length === 0) {
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const dateStr = isMonthly
+        ? `${targetDate.getFullYear()}-${pad(targetDate.getMonth() + 1)}-01`
+        : `${targetDate.getFullYear()}-${pad(targetDate.getMonth() + 1)}-${pad(targetDate.getDate())}`;
+      return { date: dateStr, pemasukan: 0, pengeluaran: 0, selisih: 0 };
+    }
+
+    // Jika ada banyak transaksi di hari yang sama, JUMLAHKAN semuanya!
+    return matches.reduce((acc, curr) => ({
+      date: curr.date, // Ambil tanggal asli
+      pemasukan: acc.pemasukan + (curr.pemasukan || 0),
+      pengeluaran: acc.pengeluaran + (curr.pengeluaran || 0),
+      selisih: acc.selisih + (curr.selisih || 0)
+    }), { date: '', pemasukan: 0, pengeluaran: 0, selisih: 0 });
+  };
+
+  // 3. Looping Pembuatan Kalender
   if (filterType === 'harian') {
     // Generate 7 Hari Terakhir
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(today.getDate() - i);
-      const dateStr = formatDate(d);
-      const existing = apiData.find(item => item.date.startsWith(dateStr));
-      result.push(existing || { date: dateStr, pemasukan: 0, pengeluaran: 0, selisih: 0 });
+      result.push(aggregateData(d, false));
     }
   } else if (filterType === 'bulanan') {
     // Generate Tanggal 1 sampai akhir bulan ini
@@ -39,20 +74,17 @@ const generateCompleteData = (apiData: ChartSummaryData[], filterType: FilterTyp
 
     for (let i = 1; i <= daysInMonth; i++) {
       const d = new Date(year, month, i);
-      const dateStr = formatDate(d);
-      const existing = apiData.find(item => item.date.startsWith(dateStr));
-      result.push(existing || { date: dateStr, pemasukan: 0, pengeluaran: 0, selisih: 0 });
+      result.push(aggregateData(d, false));
     }
   } else if (filterType === 'tahunan') {
     // Generate 12 Bulan dalam tahun ini
     const year = today.getFullYear();
     for (let i = 0; i < 12; i++) {
-      const monthPrefix = `${year}-${pad(i + 1)}`;
-      const existing = apiData.find(item => item.date.startsWith(monthPrefix));
-      result.push(existing || { date: `${monthPrefix}-01`, pemasukan: 0, pengeluaran: 0, selisih: 0 });
+      const d = new Date(year, i, 1);
+      result.push(aggregateData(d, true));
     }
   } else {
-    return apiData; // Fallback
+    return apiData;
   }
 
   return result;
