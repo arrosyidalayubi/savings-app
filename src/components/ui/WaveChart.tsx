@@ -1,7 +1,7 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { ChartSummaryData, FilterType } from '../../types';
 
-// 1. Pindahkan fungsi formatXAxis ke LUAR agar bisa diakses secara global
+// 1. Format X-Axis
 const formatXAxis = (tickItem: string, filterType: FilterType) => {
   const date = new Date(tickItem);
   if (isNaN(date.getTime())) return tickItem;
@@ -13,21 +13,55 @@ const formatXAxis = (tickItem: string, filterType: FilterType) => {
   }
 };
 
-// 2. Buat Interface untuk membuang 'any'
-interface TooltipPayload {
-  name: string;
-  value: number;
-  color: string;
-}
+// 2. Fungsi Pengisi Tanggal Kosong (Data Filler)
+const generateCompleteData = (apiData: ChartSummaryData[], filterType: FilterType): ChartSummaryData[] => {
+  const result: ChartSummaryData[] = [];
+  const today = new Date();
+  
+  // Helper untuk format YYYY-MM-DD
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const formatDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-interface CustomTooltipProps {
-  active?: boolean;
-  payload?: TooltipPayload[];
-  label?: string;
-  filterType: FilterType; // Kita oper filterType ke sini
-}
+  if (filterType === 'harian') {
+    // Generate 7 Hari Terakhir
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(today.getDate() - i);
+      const dateStr = formatDate(d);
+      const existing = apiData.find(item => item.date.startsWith(dateStr));
+      result.push(existing || { date: dateStr, pemasukan: 0, pengeluaran: 0, selisih: 0 });
+    }
+  } else if (filterType === 'bulanan') {
+    // Generate Tanggal 1 sampai akhir bulan ini
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-// 3. Pindahkan CustomTooltip ke LUAR komponen utama
+    for (let i = 1; i <= daysInMonth; i++) {
+      const d = new Date(year, month, i);
+      const dateStr = formatDate(d);
+      const existing = apiData.find(item => item.date.startsWith(dateStr));
+      result.push(existing || { date: dateStr, pemasukan: 0, pengeluaran: 0, selisih: 0 });
+    }
+  } else if (filterType === 'tahunan') {
+    // Generate 12 Bulan dalam tahun ini
+    const year = today.getFullYear();
+    for (let i = 0; i < 12; i++) {
+      const monthPrefix = `${year}-${pad(i + 1)}`;
+      const existing = apiData.find(item => item.date.startsWith(monthPrefix));
+      result.push(existing || { date: `${monthPrefix}-01`, pemasukan: 0, pengeluaran: 0, selisih: 0 });
+    }
+  } else {
+    return apiData; // Fallback
+  }
+
+  return result;
+};
+
+// 3. Tooltip Components
+interface TooltipPayload { name: string; value: number; color: string; }
+interface CustomTooltipProps { active?: boolean; payload?: TooltipPayload[]; label?: string; filterType: FilterType; }
+
 const CustomTooltip = ({ active, payload, label, filterType }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const formattedDate = formatXAxis(label || '', filterType);
@@ -48,22 +82,16 @@ const CustomTooltip = ({ active, payload, label, filterType }: CustomTooltipProp
   return null;
 };
 
-// --- PROPS KOMPONEN UTAMA ---
-interface WaveChartProps {
-  data: ChartSummaryData[];
-  loading: boolean;
-  filterType: FilterType;
-}
+// --- KOMPONEN UTAMA ---
+interface WaveChartProps { data: ChartSummaryData[]; loading: boolean; filterType: FilterType; }
 
-// 4. Komponen Utama WaveChart yang sekarang sudah sangat bersih
 export default function WaveChart({ data, loading, filterType }: WaveChartProps) {
   if (loading) {
     return <div className="w-full h-full flex items-center justify-center text-muted font-medium animate-pulse">Memuat Analisis...</div>;
   }
 
-  if (!data || data.length === 0) {
-    return <div className="w-full h-full flex items-center justify-center text-muted font-medium">Belum ada data transaksi.</div>;
-  }
+  // Proses data sebelum dimasukkan ke grafik
+  const completeData = generateCompleteData(data, filterType);
 
   const formatRupiah = (value: number) => {
     if (value >= 1000000) return `Rp ${(value / 1000000).toFixed(1)}M`;
@@ -73,8 +101,8 @@ export default function WaveChart({ data, loading, filterType }: WaveChartProps)
 
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-        
+      {/* Perbaikan Margin Left agar tulisan "Rp" tidak terpotong */}
+      <AreaChart data={completeData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
         <defs>
           <linearGradient id="colorPemasukan" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="#11caa0" stopOpacity={0.4} />
@@ -90,44 +118,28 @@ export default function WaveChart({ data, loading, filterType }: WaveChartProps)
         
         <XAxis 
           dataKey="date" 
-          tickFormatter={(tick) => formatXAxis(tick, filterType)} // Lempar filterType ke fungsi
+          tickFormatter={(tick) => formatXAxis(tick, filterType)} 
           axisLine={false} 
           tickLine={false} 
           tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }} 
           dy={10} 
+          // Menyembunyikan beberapa tanggal jika terlalu padat (khusus bulanan)
+          minTickGap={20}
         />
         
+        {/* Lebar YAxis diatur agar angka tidak keluar jalur */}
         <YAxis 
+          width={65}
           tickFormatter={formatRupiah} 
           axisLine={false} 
           tickLine={false} 
           tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }} 
         />
         
-        {/* Kirim filterType sebagai prop ke CustomTooltip */}
         <Tooltip content={<CustomTooltip filterType={filterType} />} />
         
-        <Area 
-          type="monotone" 
-          dataKey="pengeluaran" 
-          name="Pengeluaran" 
-          stroke="#ef4444" 
-          strokeWidth={3}
-          fillOpacity={1} 
-          fill="url(#colorPengeluaran)" 
-          activeDot={{ r: 6, strokeWidth: 0 }} 
-        />
-        
-        <Area 
-          type="monotone" 
-          dataKey="pemasukan" 
-          name="Pemasukan" 
-          stroke="#11caa0" 
-          strokeWidth={3}
-          fillOpacity={1} 
-          fill="url(#colorPemasukan)" 
-          activeDot={{ r: 6, strokeWidth: 0 }} 
-        />
+        <Area type="monotone" dataKey="pengeluaran" name="Pengeluaran" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorPengeluaran)" activeDot={{ r: 6, strokeWidth: 0 }} />
+        <Area type="monotone" dataKey="pemasukan" name="Pemasukan" stroke="#11caa0" strokeWidth={3} fillOpacity={1} fill="url(#colorPemasukan)" activeDot={{ r: 6, strokeWidth: 0 }} />
       </AreaChart>
     </ResponsiveContainer>
   );
