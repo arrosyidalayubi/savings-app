@@ -26,14 +26,14 @@ export async function onRequestGet(context) {
   // Logika Filter Waktu SQLite
   let dateCondition = "";
   if (filter === 'harian') {
-    // Transaksi hari ini saja
-    dateCondition = "date(transaction_date) = date('now')";
+    // Transaksi 7 hari terakhir
+    dateCondition = "date(transaction_date) >= date('now', '+7 hours', '-7 days')";
   } else if (filter === 'bulanan') {
     // Transaksi bulan ini
-    dateCondition = "strftime('%Y-%m', transaction_date) = strftime('%Y-%m', 'now')";
+    dateCondition = "strftime('%Y-%m', transaction_date) = strftime('%Y-%m', 'now', '+7 hours')";
   } else if (filter === 'tahunan') {
     // Transaksi tahun ini
-    dateCondition = "strftime('%Y', transaction_date) = strftime('%Y', 'now')";
+    dateCondition = "strftime('%Y', transaction_date) = strftime('%Y', 'now', '+7 hours')";
   }
 
   const sql = `

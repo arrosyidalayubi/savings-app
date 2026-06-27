@@ -9,11 +9,11 @@ export async function onRequestGet(context) {
   // Jika harian, kita ambil per jam atau cukup transaksi hari itu saja.
   // Untuk grafik gelombang, lebih cocok dikelompokkan berdasarkan tanggal untuk bulanan/tahunan.
   if (type === 'harian') {
-    dateCondition = "date(transaction_date) = date('now')";
+    dateCondition = "date(transaction_date) >= date('now', '+7 hours', '-7 days')";
   } else if (type === 'bulanan') {
-    dateCondition = "strftime('%Y-%m', transaction_date) = strftime('%Y-%m', 'now')";
+    dateCondition = "strftime('%Y-%m', transaction_date) = strftime('%Y-%m', 'now', '+7 hours')";
   } else if (type === 'tahunan') {
-    dateCondition = "strftime('%Y', transaction_date) = strftime('%Y', 'now')";
+    dateCondition = "strftime('%Y', transaction_date) = strftime('%Y', 'now', '+7 hours')";
   }
 
   // Melakukan agregasi (Pengelompokan) data pemasukan dan pengeluaran
