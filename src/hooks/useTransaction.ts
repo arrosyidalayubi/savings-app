@@ -3,18 +3,20 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Transaction, TransactionFormData } from '../types';
 
-export const useTransaction = (filterType: string, getAuthHeader: () => HeadersInit) => {
+export const useTransaction = (filterType: string, activeMenu: string, getAuthHeader: () => Record<string, string>) => {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<TransactionFormData>({
     type: 'pengeluaran', amount: '', category: '', description: '', transaction_date: new Date().toISOString().split('T')[0]
   });
 
+  const currentFilter = activeMenu === 'wallet' ? 'semua' : filterType;
+
   // --- QUERIES ---
   const { data: transactions = [], isLoading: isLoadingTransactions } = useQuery<Transaction[]>({
-    queryKey: ['transactions', filterType], 
+    queryKey: ['transactions', currentFilter], 
     queryFn: async () => { 
-      const res = await fetch(`/api/transactions?filter=${filterType}`, { headers: getAuthHeader() }); 
+      const res = await fetch(`/api/transactions?filter=${currentFilter}`, { headers: getAuthHeader() }); 
       const json = await res.json(); 
       return json.data; 
     }

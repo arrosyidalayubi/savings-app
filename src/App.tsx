@@ -57,7 +57,7 @@ export default function App() {
   setFormData, 
   editingId, 
   setEditingId 
-} = useTransaction(filterType, getAuthHeader);
+} = useTransaction(filterType, activeMenu, getAuthHeader);
 
 const { 
   goals, 

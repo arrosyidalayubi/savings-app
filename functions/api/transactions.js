@@ -22,25 +22,17 @@ export async function onRequestGet(context) {
   const { env, request } = context;
   const url = new URL(request.url);
   const filter = url.searchParams.get('filter') || 'bulanan'; // harian | bulanan | tahunan
+  let dateCondition = "1=1";
 
-  // Logika Filter Waktu SQLite
-  let dateCondition = "";
   if (filter === 'harian') {
-    // Transaksi 7 hari terakhir
     dateCondition = "date(transaction_date) >= date('now', '+7 hours', '-7 days')";
   } else if (filter === 'bulanan') {
-    // Transaksi bulan ini
     dateCondition = "strftime('%Y-%m', transaction_date) = strftime('%Y-%m', 'now', '+7 hours')";
   } else if (filter === 'tahunan') {
-    // Transaksi tahun ini
     dateCondition = "strftime('%Y', transaction_date) = strftime('%Y', 'now', '+7 hours')";
   }
 
-  const sql = `
-    SELECT * FROM transactions 
-    WHERE ${dateCondition} 
-    ORDER BY transaction_date DESC, id DESC
-  `;
+  const sql = `SELECT * FROM transactions WHERE ${dateCondition} ORDER BY transaction_date DESC, id DESC`;
 
   try {
     const { results } = await env.DB.prepare(sql).all();
