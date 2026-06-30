@@ -25,8 +25,9 @@ export default function GoalsView({ goals, isLoadingGoals, openGoalModal, handle
     <div className="space-y-6">
       <div className="flex gap-6 border-b border-border mb-6">
   <button 
+    type="button"
     onClick={() => setActiveTab('semua')}
-    className={`pb-3 font-semibold transition-colors ${
+    className={`pb-3 font-semibold transition-colors cursor-pointer relative z-10 ${
       activeTab === 'semua' 
         ? 'border-b-2 border-primary text-primary' 
         : 'text-muted hover:text-primary'
@@ -36,8 +37,9 @@ export default function GoalsView({ goals, isLoadingGoals, openGoalModal, handle
   </button>
   
   <button 
+    type="button"
     onClick={() => setActiveTab('active')}
-    className={`pb-3 font-semibold transition-colors ${
+    className={`pb-3 font-semibold transition-colors cursor-pointer relative z-10 ${
       activeTab === 'active' 
         ? 'border-b-2 border-primary text-primary' 
         : 'text-muted hover:text-primary'
@@ -47,8 +49,9 @@ export default function GoalsView({ goals, isLoadingGoals, openGoalModal, handle
   </button>
   
   <button 
+    type="button"
     onClick={() => setActiveTab('completed')}
-    className={`pb-3 font-semibold transition-colors ${
+    className={`pb-3 font-semibold transition-colors cursor-pointer relative z-10 ${
       activeTab === 'completed' 
         ? 'border-b-2 border-primary text-primary' 
         : 'text-muted hover:text-primary'
@@ -64,7 +67,7 @@ export default function GoalsView({ goals, isLoadingGoals, openGoalModal, handle
         ) : displayedGoals.map(goal => {
           const percentage = Math.min(Math.round((goal.saved_amount / goal.target_amount) * 100), 100);
           return (
-            <div key={goal.id} className="bg-surface border border-border rounded-[20px] p-6 shadow-sm flex flex-col gap-4">
+            <div key={goal.id} className="relative group bg-surface border border-border rounded-[20px] p-6 shadow-sm flex flex-col gap-4">
               <div className="flex justify-between items-start">
                 <div className="flex gap-4 items-center">
                   <div className="w-12 h-12 rounded-xl bg-background border border-border flex items-center justify-center text-primary">
