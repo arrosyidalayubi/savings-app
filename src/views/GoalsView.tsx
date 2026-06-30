@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Icons } from '../components/ui/Icons';
 import type { Goal } from '../types';
 
@@ -11,19 +12,56 @@ interface GoalsViewProps {
 }
 
 export default function GoalsView({ goals, isLoadingGoals, openGoalModal, handleDeleteGoal, handleAddMoney, formatRupiah }: GoalsViewProps) {
+  const [activeTab, setActiveTab] = useState<'semua' | 'active' | 'completed'>('semua');
+  const activeCount = goals.filter(g => g.saved_amount < g.target_amount).length;
+  const completedCount = goals.filter(g => g.saved_amount >= g.target_amount).length;
+  const allCount = goals.length;
+  const displayedGoals = goals.filter(goal => {
+    if (activeTab === 'active') return goal.saved_amount < goal.target_amount;
+    if (activeTab === 'completed') return goal.saved_amount >= goal.target_amount;
+    return true; // Jika 'semua', tampilkan semua
+  });
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center bg-surface border border-border rounded-[20px] p-4 px-6 shadow-sm overflow-x-auto">
-        <div className="flex gap-4 min-w-max">
-          <button className="text-sm font-bold text-primary border-b-2 border-accent pb-1">Semua Target ({goals.length})</button>
-        </div>
-        <button onClick={() => openGoalModal()} className="px-4 py-2 bg-accent text-white text-sm font-semibold rounded-lg shadow-md flex items-center gap-2 min-w-max ml-4"><Icons.Plus /> Tambah Target</button>
-      </div>
+      <div className="flex gap-6 border-b border-border mb-6">
+  <button 
+    onClick={() => setActiveTab('semua')}
+    className={`pb-3 font-semibold transition-colors ${
+      activeTab === 'semua' 
+        ? 'border-b-2 border-primary text-primary' 
+        : 'text-muted hover:text-primary'
+    }`}
+  >
+    Semua Target ({allCount})
+  </button>
+  
+  <button 
+    onClick={() => setActiveTab('active')}
+    className={`pb-3 font-semibold transition-colors ${
+      activeTab === 'active' 
+        ? 'border-b-2 border-primary text-primary' 
+        : 'text-muted hover:text-primary'
+    }`}
+  >
+    Active ({activeCount})
+  </button>
+  
+  <button 
+    onClick={() => setActiveTab('completed')}
+    className={`pb-3 font-semibold transition-colors ${
+      activeTab === 'completed' 
+        ? 'border-b-2 border-primary text-primary' 
+        : 'text-muted hover:text-primary'
+    }`}
+  >
+    Completed ({completedCount})
+  </button>
+</div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {isLoadingGoals ? (
           <div className="col-span-full py-12 text-center text-muted font-medium">Memuat data...</div>
-        ) : goals.map(goal => {
+        ) : displayedGoals.map(goal => {
           const percentage = Math.min(Math.round((goal.saved_amount / goal.target_amount) * 100), 100);
           return (
             <div key={goal.id} className="bg-surface border border-border rounded-[20px] p-6 shadow-sm flex flex-col gap-4">
