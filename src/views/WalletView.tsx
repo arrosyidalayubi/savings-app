@@ -1,8 +1,9 @@
+import { useMemo } from 'react';
 import { Icons } from '../components/ui/Icons';
 import type { Transaction } from '../types';
 
 interface WalletViewProps {
-  summary: { pemasukan: number; pengeluaran: number; selisih: number };
+  // 'summary' sudah dihapus dari sini karena tidak dipakai lagi
   transactions: Transaction[];
   walletMonth: string;
   setWalletMonth: (val: string) => void;
@@ -13,21 +14,55 @@ interface WalletViewProps {
 }
 
 export default function WalletView(props: WalletViewProps) {
-  const { summary, transactions, walletMonth, setWalletMonth, searchQuery, setSearchQuery, formatRupiah, triggerWalletAction } = props;
+  // 'summary' dihapus dari proses destructuring
+  const { transactions, walletMonth, setWalletMonth, searchQuery, setSearchQuery, formatRupiah, triggerWalletAction } = props;
+  
+  const displayedTransactions = useMemo(() => {
+    return transactions.filter(trx => {
+      const matchMonth = walletMonth ? trx.transaction_date.startsWith(walletMonth) : true;
+      const matchSearch = searchQuery ? (trx.category.toLowerCase().includes(searchQuery.toLowerCase()) || (trx.description && trx.description.toLowerCase().includes(searchQuery.toLowerCase()))) : true;
+      return matchMonth && matchSearch;
+    });
+  }, [transactions, walletMonth, searchQuery]);
+
+  const allTimeSummary = useMemo(() => {
+    const pemasukan = transactions.reduce((acc, curr) => curr.type === 'pemasukan' ? acc + curr.amount : acc, 0);
+    const pengeluaran = transactions.reduce((acc, curr) => curr.type === 'pengeluaran' ? acc + curr.amount : acc, 0);
+    return {
+      pemasukan,
+      pengeluaran,
+      saldo: pemasukan - pengeluaran
+    };
+  }, [transactions]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
       
       {/* Kolom Kiri: Ringkasan Saldo & Aksi Cepat */}
       <div className="lg:col-span-4 space-y-6">
-        <div className="bg-brand text-white border border-brand rounded-[20px] p-6 shadow-xl relative overflow-hidden">
-          <p className="text-sm font-medium text-white/80 flex items-center gap-2"><Icons.Wallet /> Saldo Tersedia</p>
-          <p className="text-4xl font-bold mt-4">{formatRupiah(summary.selisih)}</p>
-          <div className="flex items-center gap-4 mt-6 pt-6 border-t border-white/10">
-            <span className="flex items-center gap-1.5 text-xs text-white/80"><span className="w-2 h-2 rounded-full bg-accent"></span> In: {formatRupiah(summary.pemasukan)}</span>
-            <span className="flex items-center gap-1.5 text-xs text-white/80"><span className="w-2 h-2 rounded-full bg-danger"></span> Out: {formatRupiah(summary.pengeluaran)}</span>
+        <div className="bg-primary rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+          <div className="flex items-center gap-2 text-white/80 font-medium mb-4 relative z-10">
+            {/* Bungkus ikon dengan div untuk menghindari error TypeScript IntrinsicAttributes */}
+            <div className="w-5 h-5 flex items-center justify-center">
+              <Icons.Wallet />
+            </div>
+            <p>Saldo Tersedia</p>
           </div>
-          <div className="absolute -top-10 -right-10 w-40 h-40 bg-accent/20 rounded-full blur-3xl"></div>
+          
+          <h2 className="text-4xl font-bold text-white mb-6 relative z-10">
+            {formatRupiah(allTimeSummary.saldo)}
+          </h2>
+
+          <div className="flex items-center gap-4 text-sm font-medium text-white/80 relative z-10">
+            <span className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-white" />
+              Total In: {formatRupiah(allTimeSummary.pemasukan)}
+            </span>
+            <span className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-danger" />
+              Total Out: {formatRupiah(allTimeSummary.pengeluaran)}
+            </span>
+          </div>
         </div>
 
         {/* Tombol Aksi Cepat */}
@@ -61,33 +96,28 @@ export default function WalletView(props: WalletViewProps) {
         </div>
         
         <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
-          {transactions
-            .filter(trx => {
-              const matchSearch = trx.category.toLowerCase().includes(searchQuery.toLowerCase()) || (trx.description?.toLowerCase() || '').includes(searchQuery.toLowerCase());
-              const matchMonth = walletMonth ? trx.transaction_date.startsWith(walletMonth) : true;
-              return matchSearch && matchMonth;
-            })
-            .map(trx => (
-              <div key={trx.id} className="flex justify-between items-center p-4 bg-background border border-border rounded-xl hover:border-accent transition-all group">
-                <div className="flex gap-4 items-center overflow-hidden">
-                  <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center ${trx.type === 'pemasukan' ? 'bg-accent/10 text-accent' : 'bg-danger/10 text-danger'}`}>
-                    {trx.type === 'pemasukan' ? <Icons.ArrowDownLeft /> : <Icons.ArrowUpRight />}
-                  </div>
-                  <div className="min-w-0 pr-4">
-                    <p className="font-bold text-sm text-primary truncate">
-                      {trx.category === 'Lainnya' ? (trx.description || 'Transaksi Lainnya') : trx.category}
-                    </p>
-                    <p className="text-xs text-muted mt-0.5 flex gap-1.5 items-center">
-                      {trx.category === 'Lainnya' && <span className="text-accent font-semibold text-[9px] bg-accent/10 px-1.5 py-0.5 rounded uppercase tracking-wider">Lainnya</span>}
-                      {new Date(trx.transaction_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </p>
-                  </div>
+          {/* Menggunakan displayedTransactions yang sudah difilter di atas, bukan memfilter ulang */}
+          {displayedTransactions.map(trx => (
+            <div key={trx.id} className="flex justify-between items-center p-4 bg-background border border-border rounded-xl hover:border-accent transition-all group">
+              <div className="flex gap-4 items-center overflow-hidden">
+                <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center ${trx.type === 'pemasukan' ? 'bg-accent/10 text-accent' : 'bg-danger/10 text-danger'}`}>
+                  {trx.type === 'pemasukan' ? <Icons.ArrowDownLeft /> : <Icons.ArrowUpRight />}
                 </div>
-                <div className="text-right shrink-0">
-                  <p className={`font-bold text-sm ${trx.type === 'pemasukan' ? 'text-accent' : 'text-danger'}`}>{trx.type === 'pemasukan' ? '+' : '-'}{formatRupiah(trx.amount)}</p>
-                  <p className="text-[10px] text-muted font-medium uppercase tracking-wider">Success</p>
+                <div className="min-w-0 pr-4">
+                  <p className="font-bold text-sm text-primary truncate">
+                    {trx.category === 'Lainnya' ? (trx.description || 'Transaksi Lainnya') : trx.category}
+                  </p>
+                  <p className="text-xs text-muted mt-0.5 flex gap-1.5 items-center">
+                    {trx.category === 'Lainnya' && <span className="text-accent font-semibold text-[9px] bg-accent/10 px-1.5 py-0.5 rounded uppercase tracking-wider">Lainnya</span>}
+                    {new Date(trx.transaction_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
                 </div>
               </div>
+              <div className="text-right shrink-0">
+                <p className={`font-bold text-sm ${trx.type === 'pemasukan' ? 'text-accent' : 'text-danger'}`}>{trx.type === 'pemasukan' ? '+' : '-'}{formatRupiah(trx.amount)}</p>
+                <p className="text-[10px] text-muted font-medium uppercase tracking-wider">Success</p>
+              </div>
+            </div>
           ))}
         </div>
       </div>

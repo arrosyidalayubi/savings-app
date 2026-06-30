@@ -351,7 +351,6 @@ const {
             {/* VIEW 3: WALLET */}
             {activeMenu === 'wallet' && (
               <WalletView 
-              summary={summary}
               transactions={transactions}
               walletMonth={walletMonth}
               setWalletMonth={setWalletMonth}
