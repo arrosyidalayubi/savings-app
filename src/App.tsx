@@ -9,6 +9,7 @@ import Header from './components/layout/Header';
 import MobileMenu from './components/layout/MobileMenu';
 import WalletView from './views/WalletView';
 import GoalsView from './views/GoalsView';
+import SettingsView from './views/SettingsView';
 import { useTransaction } from './hooks/useTransaction';
 import { useGoals } from './hooks/useGoals';
 
@@ -20,6 +21,10 @@ export default function App() {
   const [activeMenu, setActiveMenu] = useState<MenuType>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [walletMonth, setWalletMonth] = useState('');
+
+  const [isAddMoneyModalOpen, setIsAddMoneyModalOpen] = useState(false);
+  const [selectedGoalForMoney, setSelectedGoalForMoney] = useState<Goal | null>(null);
+  const [addMoneyAmount, setAddMoneyAmount] = useState('');
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -63,11 +68,8 @@ export default function App() {
 const { 
   goals, 
   isLoadingGoals, 
-  isGoalModalOpen, 
   setIsGoalModalOpen, 
-  goalFormData, 
-  setGoalFormData, 
-  submitGoal, 
+  setGoalFormData,
   updateGoalProgress, 
   deleteGoal 
 } = useGoals(getAuthHeader);
@@ -162,17 +164,10 @@ const {
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target; setFormData((prev) => ({ ...prev, [name]: value }));
   };
-  const handleGoalInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target; setGoalFormData((prev) => ({ ...prev, [name]: value }));
-  };
 
   const handleFormSubmit = (e: SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault(); if (!formData.amount || !formData.category) return alert("Mohon isi jumlah");
     submitTransaction.mutate({ id: editingId, data: { ...formData, amount: parseFloat(formData.amount) } });
-  };
-  const handleGoalSubmit = (e: SyntheticEvent) => {
-    e.preventDefault(); if (!goalFormData.name || !goalFormData.target_amount) return alert("Mohon isi Nama & Target");
-    submitGoal.mutate({ id: goalFormData.id, data: { ...goalFormData, target_amount: parseFloat(goalFormData.target_amount) } });
   };
 
   const startEdit = (trx: Transaction) => {
@@ -193,15 +188,28 @@ const {
     setIsGoalModalOpen(true);
   };
   const handleAddMoney = (goal: Goal) => {
-    const amountStr = window.prompt(`Berapa uang yang ingin ditambah ke target '${goal.name}'?`);
-    if (amountStr) {
-      const amount = parseFloat(amountStr);
-      if (!isNaN(amount) && amount > 0) {
-        const newSaved = goal.saved_amount + amount;
-        updateGoalProgress.mutate({ id: goal.id, data: { ...goal, saved_amount: newSaved, status: newSaved >= goal.target_amount ? 'Completed' : 'Active' } });
-      } else { alert("Jumlah tidak valid."); }
+    setSelectedGoalForMoney(goal);
+    setAddMoneyAmount('');
+    setIsAddMoneyModalOpen(true);
+  };
+
+  const submitAddMoney = (e: SyntheticEvent) => {
+    e.preventDefault();
+    if (!selectedGoalForMoney) return;
+    
+    const amount = parseFloat(addMoneyAmount);
+    if (!isNaN(amount) && amount > 0) {
+      const newSaved = selectedGoalForMoney.saved_amount + amount;
+      updateGoalProgress.mutate({ 
+        id: selectedGoalForMoney.id, 
+        data: { ...selectedGoalForMoney, saved_amount: newSaved, status: newSaved >= selectedGoalForMoney.target_amount ? 'Completed' : 'Active' } 
+      });
+      setIsAddMoneyModalOpen(false); // Tutup modal setelah sukses
+    } else { 
+      alert("Jumlah tidak valid."); 
     }
   };
+
   const handleDeleteGoal = (id: number) => {
     if (window.confirm("Hapus Goal ini beserta riwayat tabungannya?")) { deleteGoal.mutate(id); }
   };
@@ -265,122 +273,44 @@ const {
         <Header activeMenu={activeMenu} onToggleMobileMenu={() => setIsMobileMenuOpen(true)} userProfile={userProfile} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
 
         {/* KONTEN */}
+        {/* KONTEN */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
             
-            {/* VIEW 1: DASHBOARD */}
             {activeMenu === 'dashboard' && (
               <DashboardView
-                filterType={filterType}
-                setFilterType={setFilterType}
-                openGoalModal={openGoalModal}
-                isLoadingChart={isLoadingChart}
-                summary={summary}
-                chartData={chartData}
-                distributionData={distributionData}
-                editingId={editingId}
-                setEditingId={setEditingId}
-                formData={formData}
-                setFormData={setFormData}
-                handleInputChange={handleInputChange}
-                handleFormSubmit={handleFormSubmit}
-                submitTransaction={submitTransaction}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                isLoadingTransactions={isLoadingTransactions}
-                filteredTransactions={filteredTransactions}
-                startEdit={startEdit}
-                handleDelete={handleDelete}
+                filterType={filterType} setFilterType={setFilterType} openGoalModal={openGoalModal}
+                isLoadingChart={isLoadingChart} summary={summary} chartData={chartData}
+                distributionData={distributionData} editingId={editingId} setEditingId={setEditingId}
+                formData={formData} setFormData={setFormData} handleInputChange={handleInputChange}
+                handleFormSubmit={handleFormSubmit} submitTransaction={submitTransaction}
+                searchQuery={searchQuery} setSearchQuery={setSearchQuery} isLoadingTransactions={isLoadingTransactions}
+                filteredTransactions={filteredTransactions} startEdit={startEdit} handleDelete={handleDelete}
                 formatRupiah={formatRupiah}
               />
             )}
-            {/* VIEW 2: GOALS PLANS */}
+
             {activeMenu === 'goals' && (
               <GoalsView 
-                goals={goals}
-                isLoadingGoals={isLoadingGoals}
-                openGoalModal={openGoalModal}
-                handleDeleteGoal={handleDeleteGoal}
-                handleAddMoney={handleAddMoney}
-                formatRupiah={formatRupiah}
+                goals={goals} isLoadingGoals={isLoadingGoals} openGoalModal={openGoalModal}
+                handleDeleteGoal={handleDeleteGoal} handleAddMoney={handleAddMoney} formatRupiah={formatRupiah}
               />
             )}
 
-            {/* VIEW 3: WALLET */}
             {activeMenu === 'wallet' && (
               <WalletView 
-              transactions={transactions}
-              walletMonth={walletMonth}
-              setWalletMonth={setWalletMonth}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              formatRupiah={formatRupiah}
-              triggerWalletAction={triggerWalletAction}
+                transactions={transactions} walletMonth={walletMonth} setWalletMonth={setWalletMonth}
+                searchQuery={searchQuery} setSearchQuery={setSearchQuery} formatRupiah={formatRupiah}
+                triggerWalletAction={triggerWalletAction}
               />
-              )}
+            )}
 
-            {/* VIEW 4: SETTINGS (PROFIL & PASSWORD) */}
             {activeMenu === 'settings' && (
-              <div className="max-w-4xl mx-auto space-y-8">
-                
-                {/* Form Update Profil */}
-                <div className="bg-surface border border-border rounded-[20px] p-6 lg:p-8 shadow-sm">
-                  <h3 className="text-xl font-bold text-primary mb-6">Pengaturan Profil</h3>
-                  <div className="flex flex-col md:flex-row gap-8 items-start">
-                    
-                    {/* Avatar Upload */}
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                        <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-border shadow-sm">
-                          {profileForm.avatar ? (
-                            <img src={profileForm.avatar} className="w-full h-full object-cover" alt="Profile" />
-                          ) : (
-                            <div className="w-full h-full bg-accent text-white flex items-center justify-center text-3xl font-bold">{profileForm.name?.charAt(0).toUpperCase() || 'U'}</div>
-                          )}
-                        </div>
-                        <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <span className="text-white"><Icons.Camera /></span>
-                        </div>
-                      </div>
-                      <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
-                      <span className="text-xs font-semibold text-muted">Click to change</span>
-                    </div>
-                    
-                    {/* Input Nama & Email */}
-                    <div className="flex-1 w-full space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-muted mb-1.5">Nama Lengkap</label>
-                        <input type="text" value={profileForm.name} onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary outline-none focus:border-accent" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-muted mb-1.5">Email (Tidak bisa diubah)</label>
-                        <input type="email" value={userProfile?.email || ''} disabled className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-muted outline-none cursor-not-allowed opacity-70" />
-                      </div>
-                      <button onClick={() => updateProfile.mutate(profileForm)} disabled={updateProfile.isPending} className="px-6 py-2.5 bg-accent text-white font-bold rounded-lg shadow-md hover:opacity-90 transition disabled:opacity-50">
-                        {updateProfile.isPending ? 'Menyimpan...' : 'Save Profile'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Form Ganti Password */}
-                <div className="bg-surface border border-border rounded-[20px] p-6 lg:p-8 shadow-sm">
-                  <h3 className="text-xl font-bold text-primary mb-6">Ganti Password</h3>
-                  <form onSubmit={(e) => { e.preventDefault(); updatePassword.mutate(passwordForm); }} className="max-w-md space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-muted mb-1.5">Password Lama</label>
-                      <input type="password" value={passwordForm.old_password} onChange={(e) => setPasswordForm({ ...passwordForm, old_password: e.target.value })} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary outline-none focus:border-accent" required />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-muted mb-1.5">Password Baru</label>
-                      <input type="password" value={passwordForm.new_password} onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary outline-none focus:border-accent" required />
-                    </div>
-                    <button type="submit" disabled={updatePassword.isPending} className="px-6 py-2.5 bg-brand text-white font-bold rounded-lg shadow-md hover:opacity-90 transition disabled:opacity-50">
-                      {updatePassword.isPending ? 'Memproses...' : 'Update Password'}
-                    </button>
-                  </form>
-                </div>
-              </div>
+              <SettingsView 
+                profileForm={profileForm} setProfileForm={setProfileForm} userProfile={userProfile}
+                fileInputRef={fileInputRef} handleImageUpload={handleImageUpload} updateProfile={updateProfile}
+                passwordForm={passwordForm} setPasswordForm={setPasswordForm} updatePassword={updatePassword}
+              />
             )}
 
           </div>
@@ -388,40 +318,30 @@ const {
       </div>
 
       {/* MODAL POPUP: ADD / EDIT GOAL */}
-      {isGoalModalOpen && (
+      {isAddMoneyModalOpen && selectedGoalForMoney && (
         <div className="fixed inset-0 z-60 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-surface border border-border rounded-[20px] p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold text-primary mb-6">{goalFormData.id ? 'Sunting Target' : 'Buat Target Baru'}</h3>
-            <form onSubmit={handleGoalSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-muted mb-1.5">Nama Target</label>
-                  <input type="text" name="name" value={goalFormData.name} onChange={handleGoalInputChange} placeholder="e.g. New Laptop" className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary focus:border-accent outline-none" required />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted mb-1.5">Jumlah Target (Rp)</label>
-                  <input type="number" name="target_amount" value={goalFormData.target_amount} onChange={handleGoalInputChange} placeholder="15000000" className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary focus:border-accent outline-none" required />
-                </div>
+          <div className="bg-surface border border-border rounded-[20px] p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-bold text-primary mb-2">Tambah Uang</h3>
+            <p className="text-sm text-muted mb-6">
+              Berapa uang yang ingin ditambah ke target <span className="font-bold text-primary">{selectedGoalForMoney.name}</span>?
+            </p>
+            <form onSubmit={submitAddMoney} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1.5">Jumlah Uang (Rp)</label>
+                <input 
+                  type="number" 
+                  value={addMoneyAmount} 
+                  onChange={(e) => setAddMoneyAmount(e.target.value)} 
+                  placeholder="Contoh: 50000" 
+                  className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary focus:border-accent outline-none" 
+                  required 
+                  autoFocus 
+                />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-muted mb-1.5">Deadline</label>
-                  <input type="date" name="deadline" value={goalFormData.deadline} onChange={handleGoalInputChange} className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-primary focus:border-accent outline-none" required />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted mb-1.5">Kategori</label>
-                  <select name="icon" value={goalFormData.icon} onChange={handleGoalInputChange} className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-primary focus:border-accent outline-none appearance-none">
-                    <option value="Target">Target (Umum)</option>
-                    <option value="Laptop">Laptop (Gadget)</option>
-                    <option value="Car">Car (Kendaraan)</option>
-                  </select>
-                </div>
-              </div>
-              
               <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setIsGoalModalOpen(false)} className="flex-1 py-3 bg-background border border-border text-muted rounded-xl text-sm font-bold hover:text-primary transition">Cancel</button>
-                <button type="submit" disabled={submitGoal.isPending} className="flex-1 py-3 bg-accent text-white rounded-xl text-sm font-bold shadow-lg shadow-accent/20 hover:opacity-90 transition disabled:opacity-50">
-                  {submitGoal.isPending ? 'Saving...' : (goalFormData.id ? 'Save Changes' : '+ Create Goal')}
+                <button type="button" onClick={() => setIsAddMoneyModalOpen(false)} className="flex-1 py-3 bg-background border border-border text-muted rounded-xl text-sm font-bold hover:text-primary transition">Batal</button>
+                <button type="submit" disabled={updateGoalProgress.isPending} className="flex-1 py-3 bg-accent text-white rounded-xl text-sm font-bold shadow-lg shadow-accent/20 hover:opacity-90 transition disabled:opacity-50">
+                  {updateGoalProgress.isPending ? 'Menyimpan...' : 'Tambah Uang'}
                 </button>
               </div>
             </form>

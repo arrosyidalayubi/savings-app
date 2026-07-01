@@ -23,7 +23,7 @@ export default function GoalsView({ goals, isLoadingGoals, openGoalModal, handle
   });
   return (
     <div className="space-y-6">
-      <div className="relative z-9999 flex gap-6 border-b border-border mb-6 pointer-events-auto isolate">
+      <div className="relative flex gap-6 border-b border-border mb-6 pointer-events-auto isolate">
   <button 
     type="button"
     onClick={() => setActiveTab('semua')}
@@ -86,8 +86,8 @@ export default function GoalsView({ goals, isLoadingGoals, openGoalModal, handle
                 </div>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => openGoalModal(goal)} className="flex-1 py-2 bg-background border border-border rounded-lg text-xs font-bold text-primary">Edit</button>
-                <button onClick={() => handleAddMoney(goal)} className="flex-1 py-2 bg-accent text-white rounded-lg text-xs font-bold">+ Add Money</button>
+                <button onClick={() => openGoalModal(goal)} className="flex-1 py-2 bg-background border border-border rounded-lg text-xs font-bold text-primary">Sunting</button>
+                <button onClick={() => handleAddMoney(goal)} className="flex-1 py-2 bg-accent text-white rounded-lg text-xs font-bold">+ Tambah Dana</button>
                 <button onClick={() => handleDeleteGoal(goal.id)} className="absolute top-4 right-4 p-1.5 text-danger opacity-0 group-hover:opacity-100 bg-danger/10 rounded-lg transition" title="Hapus Goal"><Icons.Trash /> {/* Pastikan ini ikon tempat sampah atau sesuai keinginan Anda */}</button>
               </div>
             </div>

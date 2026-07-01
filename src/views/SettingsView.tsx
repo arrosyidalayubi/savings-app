@@ -11,7 +11,7 @@ interface SettingsViewProps {
   updateProfile: UseMutationResult<unknown, Error, { name: string; avatar: string | null }>;
   updatePassword: UseMutationResult<unknown, Error, { old_password: string; new_password: string }>;
   handleImageUpload: (e: ChangeEvent<HTMLInputElement>) => void;
-  fileInputRef: React.RefObject<HTMLInputElement>;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 export default function SettingsView(props: SettingsViewProps) {
