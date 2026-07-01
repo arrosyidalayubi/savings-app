@@ -66,14 +66,16 @@ export default function App() {
 } = useTransaction(filterType, activeMenu, getAuthHeader);
 
 const { 
-  goals, 
-  isLoadingGoals, 
-  setIsGoalModalOpen, 
-  setGoalFormData,
-  updateGoalProgress, 
-  deleteGoal 
-} = useGoals(getAuthHeader);
-
+    goals, 
+    isLoadingGoals, 
+    isGoalModalOpen, 
+    setIsGoalModalOpen, 
+    goalFormData, 
+    setGoalFormData,
+    submitGoal,
+    updateGoalProgress, 
+    deleteGoal 
+  } = useGoals(getAuthHeader);
   // --- QUERIES (FETCH DATA) ---
   const { data: userProfile } = useQuery<UserProfile>({
     queryKey: ['profile'],
@@ -317,7 +319,62 @@ const {
         </main>
       </div>
 
-      {/* MODAL POPUP: ADD / EDIT GOAL */}
+      {/* MODAL POPUP 1: ADD / EDIT GOAL (SUNTING TARGET) */}
+      {isGoalModalOpen && (
+        <div className="fixed inset-0 z-60 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-surface border border-border rounded-[20px] p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-bold text-primary mb-6">
+              {goalFormData.id ? 'Sunting Target' : 'Tambah Target Baru'}
+            </h3>
+            {/* Hapus as any dan gunakan konversi tipe data yang benar */}
+            <form onSubmit={(e) => { 
+              e.preventDefault(); 
+              submitGoal.mutate({ 
+                id: goalFormData.id, 
+                data: {
+                  name: goalFormData.name,
+                  target_amount: Number(goalFormData.target_amount),
+                  saved_amount: goalFormData.saved_amount,
+                  deadline: goalFormData.deadline,
+                  icon: goalFormData.icon,
+                  status: goalFormData.status
+                } 
+              }); 
+            }} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1.5">Nama Target</label>
+                  <input type="text" value={goalFormData.name} onChange={e => setGoalFormData({...goalFormData, name: e.target.value})} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary focus:border-accent outline-none" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1.5">Jumlah Target (Rp)</label>
+                  <input type="number" value={goalFormData.target_amount} onChange={e => setGoalFormData({...goalFormData, target_amount: e.target.value})} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary focus:border-accent outline-none" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1.5">Deadline</label>
+                  <input type="date" value={goalFormData.deadline} onChange={e => setGoalFormData({...goalFormData, deadline: e.target.value})} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary focus:border-accent outline-none" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1.5">Kategori</label>
+                  <select value={goalFormData.icon} onChange={e => setGoalFormData({...goalFormData, icon: e.target.value})} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-primary focus:border-accent outline-none">
+                    <option value="Target">Target (Umum)</option>
+                    <option value="Laptop">Gadget / Laptop</option>
+                    <option value="Car">Kendaraan</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setIsGoalModalOpen(false)} className="flex-1 py-3 bg-background border border-border text-muted rounded-xl text-sm font-bold hover:text-primary transition">Cancel</button>
+                <button type="submit" disabled={submitGoal.isPending} className="flex-1 py-3 bg-accent text-white rounded-xl text-sm font-bold shadow-lg shadow-accent/20 hover:opacity-90 transition disabled:opacity-50">
+                  {submitGoal.isPending ? 'Menyimpan...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL POPUP 2: TAMBAH UANG KE TARGET */}
       {isAddMoneyModalOpen && selectedGoalForMoney && (
         <div className="fixed inset-0 z-60 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-surface border border-border rounded-[20px] p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
