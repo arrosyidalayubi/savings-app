@@ -38,8 +38,11 @@ export default function GoalsView({ goals, isLoadingGoals, openGoalModal, handle
   
   <button 
     type="button"
-    onClick={() => setActiveTab('active')}
-    className={`pb-3 font-semibold transition-colors cursor-pointer relative z-10 ${
+    onClick={() => {
+      alert("Tombol Active berhasil diklik!");
+      setActiveTab('active');
+    }}
+    className={`pb-3 font-semibold transition-colors cursor-pointer relative z-50 ${
       activeTab === 'active' 
         ? 'border-b-2 border-primary text-primary' 
         : 'text-muted hover:text-primary'
