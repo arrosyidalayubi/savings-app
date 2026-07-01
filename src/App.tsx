@@ -8,6 +8,7 @@ import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import MobileMenu from './components/layout/MobileMenu';
 import WalletView from './views/WalletView';
+import GoalsView from './views/GoalsView';
 import { useTransaction } from './hooks/useTransaction';
 import { useGoals } from './hooks/useGoals';
 
@@ -295,57 +296,14 @@ const {
             )}
             {/* VIEW 2: GOALS PLANS */}
             {activeMenu === 'goals' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center bg-surface border border-border rounded-[20px] p-4 px-6 shadow-sm overflow-x-auto">
-                  <div className="flex gap-4 min-w-max">
-                    <button className="text-sm font-bold text-primary border-b-2 border-accent pb-1">Semua Target ({goals.length})</button>
-                    <button className="text-sm font-medium text-muted pb-1">Active ({goals.filter(g => g.status === 'Active').length})</button>
-                    <button className="text-sm font-medium text-muted pb-1">Completed ({goals.filter(g => g.status === 'Completed').length})</button>
-                  </div>
-                  <button onClick={() => openGoalModal()} className="px-4 py-2 bg-accent text-white text-sm font-semibold rounded-lg shadow-md flex items-center gap-2 min-w-max ml-4"><Icons.Plus /> Tambah Target</button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {isLoadingGoals ? (
-                    <div className="col-span-full py-12 text-center text-muted font-medium">Memuat data tabungan...</div>
-                  ) : goals.length === 0 ? (
-                    <div className="col-span-full py-12 text-center text-muted font-medium border border-dashed border-border rounded-[20px]">Belum ada Target tabungan yang dibuat.</div>
-                  ) : goals.map(goal => {
-                    const percentage = Math.min(Math.round((goal.saved_amount / goal.target_amount) * 100), 100);
-                    return (
-                      <div key={goal.id} className="bg-surface border border-border rounded-[20px] p-6 shadow-sm flex flex-col gap-4 relative group">
-                        <button onClick={() => handleDeleteGoal(goal.id)} className="absolute top-4 right-4 p-1.5 text-danger opacity-0 group-hover:opacity-100 bg-danger/10 rounded-lg transition" title="Hapus Goal"><Icons.Search /></button>
-                        
-                        <div className="flex justify-between items-start">
-                          <div className="flex gap-4 items-center">
-                            <div className="w-12 h-12 rounded-xl bg-background border border-border flex items-center justify-center text-primary">
-                              {goal.icon === 'Laptop' ? <Icons.Laptop /> : goal.icon === 'Car' ? <Icons.Car /> : <Icons.Target />}
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-primary">{goal.name}</h4>
-                              <p className="text-sm text-primary font-semibold">{formatRupiah(goal.target_amount)}</p>
-                            </div>
-                          </div>
-                          <span className={`text-xs font-bold px-2 py-1 rounded ${goal.status === 'Active' ? 'text-warning bg-warning/10' : 'text-accent bg-accent/10'}`}>{goal.status}</span>
-                        </div>
-                        
-                        <div>
-                          <div className="flex justify-between text-xs font-semibold mb-2"><span className="text-primary">{percentage}%</span><span className="text-muted">{formatRupiah(goal.saved_amount)} Saved</span></div>
-                          <div className="w-full h-2 bg-background rounded-full overflow-hidden border border-border">
-                            <div className={`h-full rounded-full transition-all duration-500 ${goal.status === 'Completed' ? 'bg-accent' : 'bg-warning'}`} style={{ width: `${percentage}%` }}></div>
-                          </div>
-                        </div>
-
-                        <p className="text-xs text-muted font-medium">Deadline: {new Date(goal.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric'})}</p>
-                        <div className="flex gap-2 mt-2">
-                          <button onClick={() => openGoalModal(goal)} className="flex-1 py-2 bg-background border border-border rounded-lg text-xs font-bold text-primary hover:bg-border transition">Edit</button>
-                          <button onClick={() => handleAddMoney(goal)} disabled={goal.status === 'Completed'} className="flex-1 py-2 bg-accent text-white rounded-lg text-xs font-bold hover:opacity-90 transition disabled:opacity-50">+ Add Money</button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <GoalsView 
+                goals={goals}
+                isLoadingGoals={isLoadingGoals}
+                openGoalModal={openGoalModal}
+                handleDeleteGoal={handleDeleteGoal}
+                handleAddMoney={handleAddMoney}
+                formatRupiah={formatRupiah}
+              />
             )}
 
             {/* VIEW 3: WALLET */}
