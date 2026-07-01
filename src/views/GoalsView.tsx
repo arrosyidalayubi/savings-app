@@ -23,11 +23,11 @@ export default function GoalsView({ goals, isLoadingGoals, openGoalModal, handle
   });
   return (
     <div className="space-y-6">
-      <div className="flex gap-6 border-b border-border mb-6">
+      <div className="relative z-9999 flex gap-6 border-b border-border mb-6 pointer-events-auto isolate">
   <button 
     type="button"
     onClick={() => setActiveTab('semua')}
-    className={`pb-3 font-semibold transition-colors cursor-pointer relative z-10 ${
+    className={`pb-3 font-semibold transition-colors cursor-pointer ${
       activeTab === 'semua' 
         ? 'border-b-2 border-primary text-primary' 
         : 'text-muted hover:text-primary'
@@ -38,11 +38,8 @@ export default function GoalsView({ goals, isLoadingGoals, openGoalModal, handle
   
   <button 
     type="button"
-    onClick={() => {
-      alert("Tombol Active berhasil diklik!");
-      setActiveTab('active');
-    }}
-    className={`pb-3 font-semibold transition-colors cursor-pointer relative z-50 ${
+    onClick={() => setActiveTab('active')}
+    className={`pb-3 font-semibold transition-colors cursor-pointer ${
       activeTab === 'active' 
         ? 'border-b-2 border-primary text-primary' 
         : 'text-muted hover:text-primary'
@@ -54,7 +51,7 @@ export default function GoalsView({ goals, isLoadingGoals, openGoalModal, handle
   <button 
     type="button"
     onClick={() => setActiveTab('completed')}
-    className={`pb-3 font-semibold transition-colors cursor-pointer relative z-10 ${
+    className={`pb-3 font-semibold transition-colors cursor-pointer ${
       activeTab === 'completed' 
         ? 'border-b-2 border-primary text-primary' 
         : 'text-muted hover:text-primary'
